@@ -42,7 +42,7 @@ static void draw_test_pattern(void)
     ESP_LOGI(TAG, "Test pattern drawn");
 }
 
-void app_main(void)
+extern "C" void app_main(void)
 {
     ESP_LOGI(TAG, "Starting display test (no peripherals needed)");
 

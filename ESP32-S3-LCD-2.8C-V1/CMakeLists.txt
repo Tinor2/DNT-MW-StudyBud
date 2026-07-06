@@ -1,5 +1,4 @@
-idf_component_register(                    SRCS "display_test.c++"
-                          "I2C_Driver/I2C_Driver.cpp"
+idf_component_register(SRCS "I2C_Driver/I2C_Driver.cpp"
                           "EXIO/TCA9554PWR.cpp"
                           "LCD_Driver/ST7701S.cpp"
                     INCLUDE_DIRS "." "I2C_Driver" "EXIO" "LCD_Driver"
