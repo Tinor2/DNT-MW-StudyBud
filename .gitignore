@@ -216,3 +216,23 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ESP-IDF
+sdkconfig
+sdkconfig.old
+build/
+managed_components/
+dependencies.lock
+
+# Board reference demo (large, not needed for build)
+ESP32-S3-LCD-2.8C-Demo/
+
+# macOS
+.DS_Store
+
+# VS Code (project-specific)
+.vscode/
+
+# Generated config
+eim_config.toml
+
