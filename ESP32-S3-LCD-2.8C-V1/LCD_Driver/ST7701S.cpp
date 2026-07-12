@@ -186,7 +186,7 @@ void LCD_Init(void)
             .flags = {
                 .hsync_idle_low = 0,
                 .vsync_idle_low = 0,
-                .de_idle_high = 1,
+                .de_idle_high = 0,
                 .pclk_active_neg = 0,
                 .pclk_idle_high = 0,
             },
@@ -196,7 +196,7 @@ void LCD_Init(void)
         .out_color_format = LCD_COLOR_FMT_RGB565,
         .num_fbs = 1,
         .user_fbs = {NULL},
-        .bounce_buffer_size_px = 0,
+        .bounce_buffer_size_px = 10 * EXAMPLE_LCD_H_RES,
         .dma_burst_size = 0,
         .hsync_gpio_num = (gpio_num_t)EXAMPLE_PIN_NUM_HSYNC,
         .vsync_gpio_num = (gpio_num_t)EXAMPLE_PIN_NUM_VSYNC,
