@@ -31,9 +31,9 @@ static const char *TAG = "PERIPH_TEST";
   ((byte) & 0x02 ? '1' : '0'), \
   ((byte) & 0x01 ? '1' : '0')
 
-/* ── Encoder pins (from main.c) ── */
-#define ENCODER_CLK     GPIO_NUM_4
-#define ENCODER_DT      GPIO_NUM_16
+/* ── Encoder pins (D-/D+ header: CLK=GPIO19, DT=GPIO20) ── */
+#define ENCODER_CLK     GPIO_NUM_19
+#define ENCODER_DT      GPIO_NUM_20
 #define ENCODER_SW      GPIO_NUM_0
 
 /* ── Speaker LEDC (use TIMER_1/CHANNEL_1 to avoid conflict with backlight) ── */
@@ -43,7 +43,7 @@ static const char *TAG = "PERIPH_TEST";
 #define SPEAKER_GPIO         GPIO_NUM_20
 
 /* ── Battery ADC ── */
-#define BAT_ADC_CHANNEL  ADC_CHANNEL_3   /* GPIO 4 — note: conflicts with encoder CLK */
+#define BAT_ADC_CHANNEL  ADC_CHANNEL_3   /* GPIO 4 */
 
 /* ── PCF85063 RTC (I2C address 0x51) ── */
 #define RTC_ADDR  0x51
@@ -97,13 +97,12 @@ static void test_i2c_scan(void)
 }
 
 /* ═══════════════════════════════════════════════════
-   TEST 2: EXIO (TCA9554PWR) — read pins, toggle buzzer
+   TEST 2: EXIO (TCA9554PWR) — read pins
    ═══════════════════════════════════════════════════ */
 static void test_exio(void)
 {
     ESP_LOGI(TAG, "══════ TEST 2: EXIO (TCA9554PWR) ══════");
 
-    /* Read all input pins */
     uint8_t all_inputs = Read_EXIOS();
     ESP_LOGI(TAG, "  All input pins: 0x%02X (binary: " BYTE_TO_BINARY_PATTERN ")",
              all_inputs, BYTE_TO_BINARY(all_inputs));
@@ -112,18 +111,6 @@ static void test_exio(void)
         uint8_t val = Read_EXIO(pin);
         ESP_LOGI(TAG, "  EXIO%d = %d", pin, val);
     }
-
-    /* Test buzzer (EXIO8): toggle on/off with beeps */
-    ESP_LOGI(TAG, "  Testing buzzer (EXIO8)...");
-    for (int i = 0; i < 3; i++) {
-        Set_EXIO(TCA9554_EXIO8, 1);
-        ESP_LOGI(TAG, "    Buzzer ON");
-        vTaskDelay(pdMS_TO_TICKS(200));
-        Set_EXIO(TCA9554_EXIO8, 0);
-        ESP_LOGI(TAG, "    Buzzer OFF");
-        vTaskDelay(pdMS_TO_TICKS(200));
-    }
-    ESP_LOGI(TAG, "  Buzzer test complete");
 }
 
 /* ═══════════════════════════════════════════════════
@@ -346,7 +333,6 @@ static void test_speaker(void)
 static void test_battery(void)
 {
     ESP_LOGI(TAG, "══════ TEST 6: Battery ADC ══════");
-    ESP_LOGI(TAG, "  NOTE: GPIO 4 shared with encoder — ADC runs first, then encoder takes over");
 
     adc_oneshot_unit_handle_t adc_handle;
     adc_oneshot_unit_init_cfg_t init_cfg = {};
@@ -382,21 +368,52 @@ static void test_battery(void)
 }
 
 /* ═══════════════════════════════════════════════════
-   TEST 8: WiFi Scan
+   TEST 7: WiFi — Connect to network
    ═══════════════════════════════════════════════════ */
+
+#define WIFI_SSID      "Optus_0253C6"
+#define WIFI_PASS      "chumssawerMg9QT"
+#define WIFI_MAX_RETRY 5
+
+static EventGroupHandle_t s_wifi_event_group;
+#define WIFI_CONNECTED_BIT BIT0
+#define WIFI_FAIL_BIT      BIT1
+
+static int s_retry_num = 0;
+
+static void wifi_event_handler(void *arg, esp_event_base_t event_base,
+                               int32_t event_id, void *event_data)
+{
+    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
+        esp_wifi_connect();
+    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
+        if (s_retry_num < WIFI_MAX_RETRY) {
+            esp_wifi_connect();
+            s_retry_num++;
+            ESP_LOGW(TAG, "  Reconnecting... attempt %d/%d", s_retry_num, WIFI_MAX_RETRY);
+        } else {
+            xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
+        }
+    } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
+        ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
+        ESP_LOGI(TAG, "  Connected! IP: " IPSTR, IP2STR(&event->ip_info.ip));
+        s_retry_num = 0;
+        xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+    }
+}
 
 static void test_wifi(void)
 {
-    ESP_LOGI(TAG, "══════ TEST 7: WiFi ══════");
+    ESP_LOGI(TAG, "══════ TEST 7: WiFi Connect ══════");
 
-    /* Initialize NVS */
+    s_wifi_event_group = xEventGroupCreate();
+
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         nvs_flash_erase();
         nvs_flash_init();
     }
 
-    /* Initialize network */
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     esp_netif_create_default_wifi_sta();
@@ -404,40 +421,35 @@ static void test_wifi(void)
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
-    /* Scan mode */
-    ESP_LOGI(TAG, "  Scanning for WiFi networks...");
-    wifi_scan_config_t scan_config = {};
-    scan_config.show_hidden = false;
+    esp_event_handler_instance_t instance_any_id;
+    esp_event_handler_instance_t instance_got_ip;
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID,
+                    &wifi_event_handler, NULL, &instance_any_id));
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP,
+                    &wifi_event_handler, NULL, &instance_got_ip));
+
+    wifi_config_t wifi_config = {};
+    strcpy((char *)wifi_config.sta.ssid, WIFI_SSID);
+    strcpy((char *)wifi_config.sta.password, WIFI_PASS);
+    wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
-    ESP_ERROR_CHECK(esp_wifi_scan_start(&scan_config, true));
 
-    uint16_t ap_count = 0;
-    esp_wifi_scan_get_ap_num(&ap_count);
-    ESP_LOGI(TAG, "  Found %d access point(s):", ap_count);
+    ESP_LOGI(TAG, "  Connecting to \"%s\"...", WIFI_SSID);
 
-    if (ap_count > 0) {
-        wifi_ap_record_t *ap_records = (wifi_ap_record_t *)malloc(sizeof(wifi_ap_record_t) * ap_count);
-        esp_wifi_scan_get_ap_records(&ap_count, ap_records);
+    EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
+                       WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
+                       pdFALSE, pdFALSE, pdMS_TO_TICKS(15000));
 
-        for (int i = 0; i < ap_count; i++) {
-            int rssi = ap_records[i].rssi;
-            const char *auth = "OPEN";
-            if (ap_records[i].authmode == WIFI_AUTH_WPA2_PSK) auth = "WPA2";
-            else if (ap_records[i].authmode == WIFI_AUTH_WPA_PSK) auth = "WPA";
-            else if (ap_records[i].authmode == WIFI_AUTH_WPA3_PSK) auth = "WPA3";
-            else if (ap_records[i].authmode == WIFI_AUTH_WEP) auth = "WEP";
-
-            ESP_LOGI(TAG, "    [%2d] %-32s  CH:%2d  RSSI:%3d  %s",
-                     i + 1, (char *)ap_records[i].ssid,
-                     ap_records[i].primary, rssi, auth);
-        }
-        free(ap_records);
+    if (bits & WIFI_CONNECTED_BIT) {
+        ESP_LOGI(TAG, "  WiFi connected successfully");
+    } else if (bits & WIFI_FAIL_BIT) {
+        ESP_LOGE(TAG, "  Failed to connect to \"%s\"", WIFI_SSID);
+    } else {
+        ESP_LOGE(TAG, "  WiFi connection timed out");
     }
-
-    esp_wifi_stop();
-    ESP_LOGI(TAG, "  WiFi scan complete");
 }
 
 /* ═══════════════════════════════════════════════════
@@ -469,9 +481,6 @@ extern "C" void app_main(void)
     vTaskDelay(pdMS_TO_TICKS(500));
 
     test_imu();
-    vTaskDelay(pdMS_TO_TICKS(500));
-
-    test_speaker();
     vTaskDelay(pdMS_TO_TICKS(500));
 
     test_battery();
