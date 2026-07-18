@@ -17,8 +17,8 @@ static int encoder_position = 0;
 static int last_clk_state;
 static bool last_button_state = true;
 
-#define LEDC_TIMER     LEDC_TIMER_0
-#define LEDC_CHANNEL   LEDC_CHANNEL_0
+#define LEDC_TIMER     LEDC_TIMER_1
+#define LEDC_CHANNEL   LEDC_CHANNEL_1
 #define LEDC_MODE      LEDC_LOW_SPEED_MODE
 #define LEDC_RESOLUTION LEDC_TIMER_8_BIT
 

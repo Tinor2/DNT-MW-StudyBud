@@ -1,0 +1,17 @@
+menu "StudyBud Configuration"
+
+    config EXAMPLE_AVOID_TEAR_EFFECT_WITH_SEM
+        bool "Avoid tearing effect with semaphores"
+        default y
+        help
+            Use a pair of semaphores to synchronize VSYNC with LVGL rendering,
+            avoiding tearing on the RGB parallel LCD.
+
+    config EXAMPLE_USE_BOUNCE_BUFFER
+        bool "Use bounce buffer"
+        default y
+        help
+            Enable bounce buffer mode for higher PCLK frequency at the cost
+            of higher CPU consumption.
+
+endmenu

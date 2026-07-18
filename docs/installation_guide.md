@@ -124,3 +124,45 @@ esptool.py --port /dev/cu.usbserial-* --no-stub --baud 115200 \
   0x8000 build/partition_table/partition-table.bin \
   0x10000 build/DNT-MW-StudyBud.bin
 ```
+## Revised Plan
+
+The recovery script failed because the manual low-level esptool API calls are incompatible with esptool v5.3.0 on ESP32-S3 (`erase_flash` ROM command not supported, flash command formatting changed). Here's a better approach:
+
+### Step 1: Try the CLI-based esptool command (from your installation guide)
+
+The installation guide already documents the correct workaround. Updated for esptool v5.3.0 syntax:
+
+```bash
+esptool --port /dev/cu.usbmodem59090523481 --no-stub --baud 115200 \
+  write-flash --flash-mode dio --flash-freq 80m --flash-size 16MB \
+  0x0 build/bootloader/bootloader.bin \
+  0x8000 build/partition_table/partition-table.bin \
+  0x10000 build/studybud.bin
+```
+
+Key flags: `--no-stub` (skips RAM stub upload), `--baud 115200` (avoids CH343P corruption).
+
+If it hangs or fails to connect, **hold the BOOT button** on the board while running the command, then release after "Connecting..." appears.
+
+### Step 2: If Step 1 fails — make `idf.py flash` work permanently
+
+Add `CONFIG_ESPTOOLPY_NO_STUB=y` to `sdkconfig.defaults`, then rebuild:
+
+```bash
+idf.py fullclean && idf.py build && idf.py -p /dev/cu.usbmodem59090523481 flash
+```
+
+### Step 3: If all Mac flashing fails — follow the README
+
+The README recommends using a **different computer** for the initial flash, then continuing development on your Mac.
+
+### Step 4: Fix the recovery script
+
+Update `flash_recovery.py` for esptool v5.3.0 API compatibility (fix `erase_flash`, use proper ESP32-S3 flash commands) so it works as a fallback.
+
+---
+
+**Start with Step 1** — it's the simplest and uses your existing documentation's recommended approach. Want me to proceed?
+
+---
+

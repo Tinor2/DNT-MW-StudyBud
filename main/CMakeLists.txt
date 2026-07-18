@@ -1,5 +1,29 @@
-idf_component_register(SRCS "main.cpp"
-    INCLUDE_DIRS "."
-    REQUIRES ESP32-S3-LCD-2.8C-V1
-    PRIV_REQUIRES driver esp_driver_gpio esp_driver_ledc esp_driver_spi
-                esp_lcd esp_mm freertos heap log)
+idf_component_register(
+    SRCS
+        "main.cpp"
+        "display/lvgl_driver/LVGL_Driver.c"
+        "display/encoder/encoder_input.c"
+        "display/ui_manager.c"
+        "display/screens/screen_home.c"
+        "display/screens/screen_menu.c"
+        "display/screens/screen_todos.c"
+    INCLUDE_DIRS
+        "."
+        "display"
+        "display/lvgl_driver"
+        "display/encoder"
+        "display/screens"
+    REQUIRES
+        ESP32-S3-LCD-2.8C-V1
+        lvgl
+    PRIV_REQUIRES
+        driver
+        esp_driver_gpio
+        esp_driver_ledc
+        esp_driver_spi
+        esp_lcd
+        esp_timer
+        freertos
+        heap
+        log
+)
