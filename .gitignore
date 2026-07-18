@@ -236,3 +236,7 @@ ESP32-S3-LCD-2.8C-Demo/
 # Generated config
 eim_config.toml
 
+simulator/CMakeCache.txt
+simulator/CMakeFiles/
+simulator/_build/
+simulator/lvgl/
