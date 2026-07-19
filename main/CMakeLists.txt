@@ -27,3 +27,7 @@ idf_component_register(
         heap
         log
 )
+
+target_compile_options(${COMPONENT_LIB} PRIVATE
+    -Wno-error=deprecated-enum-enum-conversion
+)

@@ -39,7 +39,12 @@ static void lvgl_flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t 
     int y2 = area->y2;
 
     xSemaphoreGive(sem_gui_ready);
-    xSemaphoreTake(sem_vsync_end, portMAX_DELAY);
+    if (xSemaphoreTake(sem_vsync_end, pdMS_TO_TICKS(100)) != pdTRUE) {
+        ESP_LOGW(TAG, "VSYNC timeout — screen may be disconnected");
+        esp_lcd_panel_draw_bitmap(panel, x1, y1, x2 + 1, y2 + 1, color_map);
+        lv_disp_flush_ready(drv);
+        return;
+    }
 
     esp_lcd_panel_draw_bitmap(panel, x1, y1, x2 + 1, y2 + 1, color_map);
     lv_disp_flush_ready(drv);

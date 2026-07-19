@@ -82,8 +82,8 @@ void ui_manager_encoder_event(lv_indev_data_t *data)
     /* Button still held: check if long press threshold crossed */
     if (waiting_for_release && data->state == LV_INDEV_STATE_PR) {
         if (!long_press_fired && lv_tick_elaps(press_start_tick) >= LONG_PRESS_MS) {
-            long_press_fired = true;
             if (current_screen != SCREEN_HOME && current_screen != SCREEN_MENU) {
+                long_press_fired = true;
                 ESP_LOGI(TAG, "Long press -> menu");
                 ui_manager_switch_screen(SCREEN_MENU);
             }
