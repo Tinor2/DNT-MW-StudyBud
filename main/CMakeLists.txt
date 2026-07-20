@@ -7,12 +7,15 @@ idf_component_register(
         "display/screens/screen_home.c"
         "display/screens/screen_menu.c"
         "display/screens/screen_todos.c"
+        "display/screens/screen_breathing.c"
+        "display/utils/session_store.c"
     INCLUDE_DIRS
         "."
         "display"
         "display/lvgl_driver"
         "display/encoder"
         "display/screens"
+        "display/utils"
     REQUIRES
         ESP32-S3-LCD-2.8C-V1
         lvgl

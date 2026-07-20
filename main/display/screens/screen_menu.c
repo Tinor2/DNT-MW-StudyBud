@@ -1,11 +1,25 @@
 #include "screen_menu.h"
 #include "studybud_theme.h"
+#include "ui_manager.h"
 #include "esp_log.h"
+#include <math.h>
 
 static const char *TAG = "Screen_Menu";
 
+#define DISPLAY_R    240
+#define DISPLAY_CY   240
+#define ROW_SPACING  64
+#define MAX_ROW_W    420
+#define MIN_VISIBLE_W 120
+#define ROW_INNER_PAD 12
+
 static lv_obj_t *screen = NULL;
-static lv_obj_t *menu_list = NULL;
+static lv_obj_t *menu_container = NULL;
+static lv_obj_t *arrow_up_label = NULL;
+static lv_obj_t *arrow_down_label = NULL;
+static lv_obj_t *count_label = NULL;
+static lv_timer_t *radial_timer = NULL;
+
 static int selected_index = 0;
 
 typedef struct {
@@ -24,45 +38,218 @@ static const menu_item_t menu_items[] = {
 };
 static const int menu_count = sizeof(menu_items) / sizeof(menu_items[0]);
 
+static lv_obj_t *row_icons[6];
+static lv_obj_t *row_labels[6];
+static lv_obj_t *row_objects[6];
+static lv_obj_t *focused_row = NULL;
+
+static void update_focus_styles(void);
+static void update_arrow_visibility(void);
+static void update_menu_count(void);
+static void apply_radial_scroll(void);
+static void radial_timer_cb(lv_timer_t *timer);
+
+static void create_menu_row(lv_obj_t *parent, int index)
+{
+    lv_obj_t *row = lv_obj_create(parent);
+    lv_obj_set_size(row, MAX_ROW_W, LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(row, 0, 0);
+    lv_obj_set_style_pad_row(row, 0, 0);
+    lv_obj_set_style_pad_column(row, 12, 0);
+    lv_obj_set_style_pad_all(row, ROW_INNER_PAD, 0);
+    lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_min_width(row, 0, 0);
+    row_objects[index] = row;
+
+    lv_obj_t *icon = lv_label_create(row);
+    lv_label_set_text(icon, menu_items[index].icon);
+    lv_obj_set_style_text_font(icon, &lv_font_montserrat_20, 0);
+    lv_obj_set_style_text_color(icon, LV_COLOR_PRIMARY, 0);
+    lv_obj_set_style_text_opa(icon, LV_OPA_80, 0);
+    row_icons[index] = icon;
+
+    lv_obj_t *label = lv_label_create(row);
+    lv_label_set_text(label, menu_items[index].name);
+    lv_obj_set_flex_grow(label, 1);
+    lv_obj_set_style_text_color(label, LV_COLOR_TEXT, 0);
+    lv_obj_set_style_text_font(label, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_opa(label, LV_OPA_80, 0);
+    lv_label_set_long_mode(label, LV_LABEL_LONG_DOT);
+    lv_obj_set_style_pad_ver(row, 6, 0);
+    row_labels[index] = label;
+}
+
+static void update_focus_styles(void)
+{
+    for (int i = 0; i < menu_count; i++) {
+        lv_obj_t *row = row_objects[i];
+        lv_obj_t *label = row_labels[i];
+        lv_obj_t *icon = row_icons[i];
+        if (!row || !label || !icon) continue;
+
+        if (row == focused_row) {
+            lv_obj_set_style_text_font(label, &lv_font_montserrat_20, 0);
+            lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
+            lv_obj_set_style_text_opa(label, LV_OPA_COVER, 0);
+            lv_obj_set_style_text_opa(icon, LV_OPA_COVER, 0);
+            lv_obj_set_style_pad_ver(row, 12, 0);
+            lv_obj_set_style_bg_opa(row, LV_OPA_20, 0);
+            lv_obj_set_style_bg_color(row, LV_COLOR_PRIMARY, 0);
+            lv_obj_set_style_radius(row, 12, 0);
+        } else {
+            lv_obj_set_style_text_font(label, &lv_font_montserrat_16, 0);
+            lv_label_set_long_mode(label, LV_LABEL_LONG_DOT);
+            lv_obj_set_style_text_opa(label, LV_OPA_80, 0);
+            lv_obj_set_style_text_opa(icon, LV_OPA_80, 0);
+            lv_obj_set_style_pad_ver(row, 6, 0);
+            lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
+        }
+    }
+}
+
+static void update_arrow_visibility(void)
+{
+    lv_coord_t st = lv_obj_get_scroll_top(menu_container);
+    lv_coord_t sb = lv_obj_get_scroll_bottom(menu_container);
+    if (st <= 0) lv_obj_add_flag(arrow_up_label, LV_OBJ_FLAG_HIDDEN);
+    else         lv_obj_clear_flag(arrow_up_label, LV_OBJ_FLAG_HIDDEN);
+    if (sb <= 0) lv_obj_add_flag(arrow_down_label, LV_OBJ_FLAG_HIDDEN);
+    else         lv_obj_clear_flag(arrow_down_label, LV_OBJ_FLAG_HIDDEN);
+}
+
+static void update_menu_count(void)
+{
+    if (!count_label) return;
+    lv_label_set_text_fmt(count_label, "%d apps", menu_count);
+}
+
+static void apply_radial_scroll(void)
+{
+    if (!menu_container) return;
+
+    lv_obj_update_layout(menu_container);
+
+    bool any_hidden_top = false;
+    bool any_hidden_bottom = false;
+
+    for (int i = 0; i < menu_count; i++) {
+        lv_obj_t *row = row_objects[i];
+        if (!row) continue;
+
+        lv_coord_t row_y = row->coords.y1;
+        lv_coord_t row_h = lv_obj_get_height(row);
+        lv_coord_t mid_y = row_y + row_h / 2;
+        lv_coord_t dy = mid_y - DISPLAY_CY;
+        lv_coord_t ady = dy < 0 ? -dy : dy;
+
+        if (ady >= DISPLAY_R) {
+            lv_obj_add_flag(row, LV_OBJ_FLAG_HIDDEN);
+            if (dy < 0) any_hidden_top = true;
+            else        any_hidden_bottom = true;
+            continue;
+        }
+
+        float fhalf = sqrtf((float)DISPLAY_R * DISPLAY_R - (float)ady * ady);
+        lv_coord_t half_w = (lv_coord_t)fhalf;
+        lv_coord_t avail_w = half_w * 2;
+        if (avail_w > MAX_ROW_W) avail_w = MAX_ROW_W;
+
+        if (avail_w < MIN_VISIBLE_W) {
+            lv_obj_add_flag(row, LV_OBJ_FLAG_HIDDEN);
+            if (dy < 0) any_hidden_top = true;
+            else        any_hidden_bottom = true;
+            continue;
+        }
+
+        lv_obj_clear_flag(row, LV_OBJ_FLAG_HIDDEN);
+
+        lv_coord_t new_x = (480 - avail_w) / 2;
+        lv_obj_set_width(row, avail_w);
+        lv_obj_set_x(row, new_x);
+
+        lv_opa_t opa;
+        if (ady < 60) {
+            opa = LV_OPA_COVER;
+        } else {
+            float fade = 1.0f - (float)(ady - 60) / (float)(DISPLAY_R - 60);
+            if (fade < 0.15f) fade = 0.15f;
+            opa = (lv_opa_t)(fade * 255);
+        }
+        lv_obj_set_style_opa(row, opa, 0);
+    }
+
+    if (any_hidden_top) lv_obj_clear_flag(arrow_up_label, LV_OBJ_FLAG_HIDDEN);
+    if (any_hidden_bottom) lv_obj_clear_flag(arrow_down_label, LV_OBJ_FLAG_HIDDEN);
+}
+
+static void radial_timer_cb(lv_timer_t *timer) { (void)timer; apply_radial_scroll(); }
+
+static void scroll_cb(lv_event_t *e) { (void)e; update_arrow_visibility(); }
+
 lv_obj_t *screen_menu_create(void)
 {
     screen = lv_obj_create(NULL);
     lv_obj_set_style_bg_color(screen, LV_COLOR_BG, 0);
+    lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
 
-    /* Menu title */
+    /* Title */
     lv_obj_t *title = lv_label_create(screen);
     lv_label_set_text(title, "Menu");
     lv_obj_set_style_text_font(title, &lv_font_montserrat_20, 0);
     lv_obj_set_style_text_color(title, LV_COLOR_TEXT, 0);
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 30);
 
-    /* Menu list using lv_list */
-    menu_list = lv_list_create(screen);
-    lv_obj_set_size(menu_list, 360, 340);
-    lv_obj_align(menu_list, LV_ALIGN_CENTER, 0, 10);
-    lv_obj_set_style_bg_color(menu_list, LV_COLOR_BG_CARD, 0);
-    lv_obj_set_style_border_color(menu_list, LV_COLOR_BORDER, 0);
-    lv_obj_set_style_border_width(menu_list, 1, 0);
-    lv_obj_set_style_radius(menu_list, 16, 0);
-    lv_obj_set_style_pad_all(menu_list, 8, 0);
+    /* Scrollable container for menu rows */
+    menu_container = lv_obj_create(screen);
+    lv_obj_set_size(menu_container, 480, 480);
+    lv_obj_align(menu_container, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_style_radius(menu_container, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_opa(menu_container, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(menu_container, 0, 0);
+    lv_obj_set_style_pad_all(menu_container, 0, 0);
+    lv_obj_set_scroll_dir(menu_container, LV_DIR_VER);
+    lv_obj_set_scrollbar_mode(menu_container, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_set_scroll_snap_y(menu_container, LV_SCROLL_SNAP_CENTER);
+    lv_obj_add_event_cb(menu_container, scroll_cb, LV_EVENT_SCROLL, NULL);
 
-    /* Add menu items */
+    /* Arrow indicators */
+    arrow_up_label = lv_label_create(screen);
+    lv_label_set_text(arrow_up_label, LV_SYMBOL_UP);
+    lv_obj_set_style_text_color(arrow_up_label, LV_COLOR_TEXT_MUTED, 0);
+    lv_obj_set_style_text_font(arrow_up_label, &lv_font_montserrat_16, 0);
+    lv_obj_align(arrow_up_label, LV_ALIGN_TOP_MID, 0, 40);
+    lv_obj_add_flag(arrow_up_label, LV_OBJ_FLAG_HIDDEN);
+
+    arrow_down_label = lv_label_create(screen);
+    lv_label_set_text(arrow_down_label, LV_SYMBOL_DOWN);
+    lv_obj_set_style_text_color(arrow_down_label, LV_COLOR_TEXT_MUTED, 0);
+    lv_obj_set_style_text_font(arrow_down_label, &lv_font_montserrat_16, 0);
+    lv_obj_align(arrow_down_label, LV_ALIGN_BOTTOM_MID, 0, -40);
+    lv_obj_add_flag(arrow_down_label, LV_OBJ_FLAG_HIDDEN);
+
+    /* Bottom count label */
+    count_label = lv_label_create(screen);
+    lv_label_set_text(count_label, "");
+    lv_obj_set_style_text_font(count_label, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(count_label, LV_COLOR_TEXT_MUTED, 0);
+    lv_obj_align(count_label, LV_ALIGN_BOTTOM_MID, 0, -60);
+
+    /* Create menu rows */
     for (int i = 0; i < menu_count; i++) {
-        lv_obj_t *btn = lv_list_add_btn(menu_list, menu_items[i].icon, menu_items[i].name);
-        lv_obj_set_style_text_font(btn, &lv_font_montserrat_16, 0);
-        lv_obj_set_style_text_color(btn, LV_COLOR_TEXT, 0);
-        lv_obj_set_style_bg_color(btn, LV_COLOR_BG_CARD, 0);
-        lv_obj_set_style_bg_color(btn, LV_COLOR_PRIMARY_LIGHT, LV_STATE_PRESSED);
-
-        /* Highlight selected item */
-        if (i == selected_index) {
-            lv_obj_set_style_bg_color(btn, LV_COLOR_PRIMARY_LIGHT, LV_STATE_FOCUSED);
-            lv_obj_add_state(btn, LV_STATE_FOCUSED);
-        }
+        create_menu_row(menu_container, i);
+        lv_obj_set_pos(row_objects[i], (480 - MAX_ROW_W) / 2, i * ROW_SPACING);
     }
 
-    /* Update list to show selected item */
-    lv_obj_scroll_to_y(menu_list, selected_index * 56, LV_ANIM_ON);
+    focused_row = row_objects[selected_index];
+    update_focus_styles();
+    update_menu_count();
+    update_arrow_visibility();
+
+    apply_radial_scroll();
+    radial_timer = lv_timer_create(radial_timer_cb, 50, NULL);
 
     ESP_LOGI(TAG, "Menu screen created with %d items", menu_count);
     return screen;
@@ -70,26 +257,24 @@ lv_obj_t *screen_menu_create(void)
 
 void screen_menu_encoder_event(lv_indev_data_t *data)
 {
+    if (!menu_container) return;
+
     if (data->enc_diff != 0) {
-        /* Scroll through menu items */
-        selected_index += data->enc_diff;
-        if (selected_index < 0) selected_index = menu_count - 1;
-        if (selected_index >= menu_count) selected_index = 0;
+        int new_idx = selected_index + data->enc_diff;
+        if (new_idx < 0) new_idx = menu_count - 1;
+        if (new_idx >= menu_count) new_idx = 0;
 
-        /* Update visual selection */
-        uint32_t child_count = lv_obj_get_child_cnt(menu_list);
-        for (uint32_t i = 0; i < child_count; i++) {
-            lv_obj_t *child = lv_obj_get_child(menu_list, i);
-            if ((int)i == selected_index) {
-                lv_obj_add_state(child, LV_STATE_FOCUSED);
-                lv_obj_set_style_bg_color(child, LV_COLOR_PRIMARY_LIGHT, LV_STATE_FOCUSED);
-            } else {
-                lv_obj_clear_state(child, LV_STATE_FOCUSED);
-            }
+        selected_index = new_idx;
+        focused_row = row_objects[selected_index];
+        update_focus_styles();
+        lv_obj_scroll_to_view(focused_row, LV_ANIM_ON);
+    }
+
+    if (data->state == LV_INDEV_STATE_PR && data->enc_diff == 0) {
+        screen_id_t target = screen_menu_get_selection();
+        if (target != SCREEN_COUNT) {
+            ui_manager_switch_screen(target);
         }
-
-        /* Scroll to keep selected item visible */
-        lv_obj_scroll_to_y(menu_list, selected_index * 56, LV_ANIM_ON);
     }
 }
 

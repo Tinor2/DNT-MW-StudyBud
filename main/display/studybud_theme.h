@@ -35,6 +35,8 @@
 #define LV_COLOR_TIMER_BREAK    lv_color_hex(0x6EAACC)
 #define LV_COLOR_WATER          lv_color_hex(0x6EAACC)
 #define LV_COLOR_BREATHING      lv_color_hex(0x7E8EC9)
+#define LV_COLOR_BREATHING_LIGHT lv_color_hex(0xA8B5DB)
+#define LV_COLOR_BREATHING_DARK  lv_color_hex(0x5A6AA8)
 
 /* === OPACITY === */
 #define LV_OPACITY_BG           LV_OPA_10

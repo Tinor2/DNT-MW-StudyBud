@@ -43,6 +43,8 @@ add_library(studybud_screens STATIC
     ${SCREEN_DIR}/screens/screen_home.c
     ${SCREEN_DIR}/screens/screen_menu.c
     ${SCREEN_DIR}/screens/screen_todos.c
+    ${SCREEN_DIR}/screens/screen_breathing.c
+    ${SCREEN_DIR}/utils/session_store.c
     ${SCREEN_DIR}/ui_manager.c
 )
 
@@ -51,6 +53,7 @@ target_include_directories(studybud_screens PUBLIC
     ${SCREEN_DIR}/lvgl_driver
     ${SCREEN_DIR}/encoder
     ${SCREEN_DIR}/screens
+    ${SCREEN_DIR}/utils
     ${CMAKE_SOURCE_DIR}
     ${LVGL_DIR}
     ${LVGL_DIR}/src

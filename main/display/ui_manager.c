@@ -2,6 +2,7 @@
 #include "screens/screen_home.h"
 #include "screens/screen_menu.h"
 #include "screens/screen_todos.h"
+#include "screens/screen_breathing.h"
 #include "studybud_theme.h"
 #include "esp_log.h"
 
@@ -36,11 +37,13 @@ void ui_manager_init(void)
     screens[SCREEN_HOME] = screen_home_create();
     screens[SCREEN_MENU] = screen_menu_create();
     screens[SCREEN_TODOS] = screen_todos_create();
+    screens[SCREEN_BREATHING] = screen_breathing_create();
 
     /* Register event handlers */
     screen_event_handlers[SCREEN_HOME] = screen_home_encoder_event;
     screen_event_handlers[SCREEN_MENU] = screen_menu_encoder_event;
     screen_event_handlers[SCREEN_TODOS] = screen_todos_encoder_event;
+    screen_event_handlers[SCREEN_BREATHING] = screen_breathing_encoder_event;
 
     /* Load home screen as default */
     lv_scr_load(screens[SCREEN_HOME]);
