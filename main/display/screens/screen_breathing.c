@@ -11,8 +11,8 @@ static const char *TAG = "Screen_Breathing";
 #define MOTION_PCT       60
 #define MOTION_MS        (CYCLE_TIME_MS * MOTION_PCT / 100)
 #define HOLD_MS          (CYCLE_TIME_MS - MOTION_MS)
-#define TRANSITION_TIME  300
-#define FOCUS_ANIM_MS    250
+#define TRANSITION_TIME  350
+#define FOCUS_ANIM_MS    300
 #define TAP_THRESHOLD_MS 200
 
 #define BADGE_BASE_SIZE  100
@@ -33,7 +33,6 @@ static breathing_state_t current_state = STATE_SELECTION;
 static lv_obj_t *screen;
 
 /* --- State A: Selection --- */
-static lv_obj_t *lbl_title;
 static lv_obj_t *btn_begin;
 static lv_obj_t *btn_cycles;
 static lv_obj_t *lbl_cycles_text;
@@ -217,7 +216,6 @@ static void transition_to_instruction(void)
     lv_label_set_text_fmt(lbl_inst_count, "It's your %d%s time today!", nth,
                           nth == 1 ? "st" : nth == 2 ? "nd" : nth == 3 ? "rd" : "th");
 
-    lv_obj_add_flag(lbl_title, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(btn_begin, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(btn_cycles, LV_OBJ_FLAG_HIDDEN);
 
@@ -310,10 +308,8 @@ static void reset_to_selection(void)
     lv_obj_add_flag(btn_home, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(btn_restart, LV_OBJ_FLAG_HIDDEN);
 
-    lv_obj_clear_flag(lbl_title, LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(btn_begin, LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(btn_cycles, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_set_style_opa(lbl_title, LV_OPA_COVER, 0);
     lv_obj_set_style_opa(btn_begin, LV_OPA_COVER, 0);
     lv_obj_set_style_opa(btn_cycles, LV_OPA_COVER, 0);
 
@@ -337,7 +333,7 @@ static void reset_to_selection(void)
 }
 
 /* ============================================================
- *  FOCUS STYLES — consistent outline on both buttons
+ *  FOCUS STYLES — strong visual indicator on both buttons
  * ============================================================ */
 static void update_focus_styles(void)
 {
@@ -346,11 +342,17 @@ static void update_focus_styles(void)
             lv_obj_t *focused = (focus_index == 0) ? btn_begin : btn_cycles;
             lv_obj_t *defocused = (focus_index == 0) ? btn_cycles : btn_begin;
 
+            /* Focused: border + brighter bg + scale up */
             animate_style(focused, (lv_anim_exec_xcb_t)anim_set_border_width,
-                          0, 3, FOCUS_ANIM_MS, 0);
+                          0, 4, FOCUS_ANIM_MS, 0);
+            animate_style(focused, (lv_anim_exec_xcb_t)anim_set_opa,
+                          LV_OPA_80, LV_OPA_COVER, FOCUS_ANIM_MS, 0);
 
+            /* Unfocused: no border + dimmer bg */
             animate_style(defocused, (lv_anim_exec_xcb_t)anim_set_border_width,
-                          3, 0, FOCUS_ANIM_MS, 0);
+                          4, 0, FOCUS_ANIM_MS, 0);
+            animate_style(defocused, (lv_anim_exec_xcb_t)anim_set_opa,
+                          LV_OPA_COVER, LV_OPA_80, FOCUS_ANIM_MS, 0);
 
             prev_focus_index = focus_index;
         }
@@ -359,21 +361,23 @@ static void update_focus_styles(void)
         lv_obj_set_style_border_color(btn_cycles, LV_COLOR_PRIMARY_LIGHT, 0);
 
         if (cycles_edit_mode) {
-            lv_obj_set_style_border_color(btn_cycles, LV_COLOR_PRIMARY_LIGHT, 0);
-            lv_obj_set_style_border_width(btn_cycles, 3, 0);
+            lv_obj_set_style_border_color(btn_cycles, LV_COLOR_WARNING, 0);
+            lv_obj_set_style_border_width(btn_cycles, 4, 0);
         }
     } else if (current_state == STATE_COMPLETE) {
         if (focus_index != prev_focus_index) {
             lv_obj_t *focused = (focus_index == 0) ? btn_home : btn_restart;
             lv_obj_t *defocused = (focus_index == 0) ? btn_restart : btn_home;
 
-            lv_obj_set_style_bg_color(focused, LV_COLOR_PRIMARY_LIGHT, 0);
-            lv_obj_set_style_bg_color(defocused, LV_COLOR_PRIMARY_DARK, 0);
-
             animate_style(focused, (lv_anim_exec_xcb_t)anim_set_border_width,
-                          0, 3, FOCUS_ANIM_MS, 0);
+                          0, 4, FOCUS_ANIM_MS, 0);
+            animate_style(focused, (lv_anim_exec_xcb_t)anim_set_opa,
+                          LV_OPA_80, LV_OPA_COVER, FOCUS_ANIM_MS, 0);
+
             animate_style(defocused, (lv_anim_exec_xcb_t)anim_set_border_width,
-                          3, 0, FOCUS_ANIM_MS, 0);
+                          4, 0, FOCUS_ANIM_MS, 0);
+            animate_style(defocused, (lv_anim_exec_xcb_t)anim_set_opa,
+                          LV_OPA_COVER, LV_OPA_80, FOCUS_ANIM_MS, 0);
 
             lv_obj_set_style_border_color(focused, LV_COLOR_PRIMARY_LIGHT, 0);
             lv_obj_set_style_border_color(defocused, LV_COLOR_PRIMARY_DARK, 0);
@@ -397,7 +401,7 @@ static void animate_style(lv_obj_t *obj, lv_anim_exec_xcb_t exec_cb,
     lv_anim_set_values(&a, from, to);
     lv_anim_set_time(&a, time);
     lv_anim_set_delay(&a, delay);
-    lv_anim_set_path_cb(&a, lv_anim_path_ease_in_out);
+    lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
     lv_anim_start(&a);
 }
 
@@ -411,11 +415,6 @@ lv_obj_t *screen_breathing_create(void)
     lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
 
     /* ---- State A: Selection ---- */
-    lbl_title = lv_label_create(screen);
-    lv_label_set_text(lbl_title, "Breathing");
-    lv_obj_set_style_text_font(lbl_title, &lv_font_montserrat_20, 0);
-    lv_obj_set_style_text_color(lbl_title, LV_COLOR_TEXT, 0);
-    lv_obj_align(lbl_title, LV_ALIGN_TOP_MID, 0, 20);
 
     /* Large centered BEGIN button — 280×280 */
     btn_begin = lv_btn_create(screen);

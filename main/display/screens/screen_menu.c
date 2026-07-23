@@ -34,13 +34,14 @@ static const menu_item_t menu_items[] = {
     { LV_SYMBOL_LIST,      "Todos",         SCREEN_TODOS },
     { LV_SYMBOL_BELL,      "Water",         SCREEN_WATER },
     { LV_SYMBOL_REFRESH,   "Breathing",     SCREEN_BREATHING },
+    { LV_SYMBOL_IMAGE,     "Backgrounds",   SCREEN_BACKGROUNDS },
     { LV_SYMBOL_SETTINGS,  "Settings",      SCREEN_SETTINGS },
 };
 static const int menu_count = sizeof(menu_items) / sizeof(menu_items[0]);
 
-static lv_obj_t *row_icons[6];
-static lv_obj_t *row_labels[6];
-static lv_obj_t *row_objects[6];
+static lv_obj_t *row_icons[7];
+static lv_obj_t *row_labels[7];
+static lv_obj_t *row_objects[7];
 static lv_obj_t *focused_row = NULL;
 
 static void update_focus_styles(void);
@@ -48,6 +49,12 @@ static void update_arrow_visibility(void);
 static void update_menu_count(void);
 static void apply_radial_scroll(void);
 static void radial_timer_cb(lv_timer_t *timer);
+static void initial_scroll_cb(lv_timer_t *timer);
+
+static void anim_set_opa(void *var, int32_t val)
+{
+    lv_obj_set_style_opa((lv_obj_t *)var, (lv_opa_t)val, 0);
+}
 
 static void create_menu_row(lv_obj_t *parent, int index)
 {
@@ -93,19 +100,35 @@ static void update_focus_styles(void)
         if (row == focused_row) {
             lv_obj_set_style_text_font(label, &lv_font_montserrat_20, 0);
             lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
-            lv_obj_set_style_text_opa(label, LV_OPA_COVER, 0);
             lv_obj_set_style_text_opa(icon, LV_OPA_COVER, 0);
             lv_obj_set_style_pad_ver(row, 12, 0);
             lv_obj_set_style_bg_opa(row, LV_OPA_20, 0);
             lv_obj_set_style_bg_color(row, LV_COLOR_PRIMARY, 0);
             lv_obj_set_style_radius(row, 12, 0);
+
+            lv_anim_t a;
+            lv_anim_init(&a);
+            lv_anim_set_var(&a, label);
+            lv_anim_set_exec_cb(&a, (lv_anim_exec_xcb_t)anim_set_opa);
+            lv_anim_set_values(&a, LV_OPA_80, LV_OPA_COVER);
+            lv_anim_set_time(&a, 200);
+            lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
+            lv_anim_start(&a);
         } else {
             lv_obj_set_style_text_font(label, &lv_font_montserrat_16, 0);
             lv_label_set_long_mode(label, LV_LABEL_LONG_DOT);
-            lv_obj_set_style_text_opa(label, LV_OPA_80, 0);
             lv_obj_set_style_text_opa(icon, LV_OPA_80, 0);
             lv_obj_set_style_pad_ver(row, 6, 0);
             lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
+
+            lv_anim_t a;
+            lv_anim_init(&a);
+            lv_anim_set_var(&a, label);
+            lv_anim_set_exec_cb(&a, (lv_anim_exec_xcb_t)anim_set_opa);
+            lv_anim_set_values(&a, LV_OPA_COVER, LV_OPA_80);
+            lv_anim_set_time(&a, 200);
+            lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
+            lv_anim_start(&a);
         }
     }
 }
@@ -187,6 +210,16 @@ static void apply_radial_scroll(void)
 
 static void radial_timer_cb(lv_timer_t *timer) { (void)timer; apply_radial_scroll(); }
 
+static void initial_scroll_cb(lv_timer_t *timer)
+{
+    (void)timer;
+    if (focused_row) {
+        lv_obj_scroll_to_view(focused_row, LV_ANIM_OFF);
+        apply_radial_scroll();
+        update_focus_styles();
+    }
+}
+
 static void scroll_cb(lv_event_t *e) { (void)e; update_arrow_visibility(); }
 
 lv_obj_t *screen_menu_create(void)
@@ -250,6 +283,9 @@ lv_obj_t *screen_menu_create(void)
 
     apply_radial_scroll();
     radial_timer = lv_timer_create(radial_timer_cb, 50, NULL);
+
+    lv_timer_t *init_timer = lv_timer_create(initial_scroll_cb, 50, NULL);
+    init_timer->repeat_count = 1;
 
     ESP_LOGI(TAG, "Menu screen created with %d items", menu_count);
     return screen;

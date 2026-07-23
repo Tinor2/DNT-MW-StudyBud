@@ -64,6 +64,7 @@ static void update_task_count(void);
 static void complete_task(lv_obj_t *row);
 static void uncomplete_task(lv_obj_t *row);
 static void shuffle_timer_cb(lv_timer_t *timer);
+static void initial_scroll_cb(lv_timer_t *timer);
 
 static bool is_row_completed(lv_obj_t *row)
 {
@@ -257,6 +258,16 @@ static void apply_radial_scroll(void)
 
 static void radial_timer_cb(lv_timer_t *timer) { (void)timer; apply_radial_scroll(); }
 
+static void initial_scroll_cb(lv_timer_t *timer)
+{
+    (void)timer;
+    if (focused_row) {
+        lv_obj_scroll_to_view(focused_row, LV_ANIM_OFF);
+        apply_radial_scroll();
+        update_focus_styles();
+    }
+}
+
 static void scroll_cb(lv_event_t *e) { (void)e; update_arrow_visibility(); }
 
 static void update_row_positions(void)
@@ -402,6 +413,9 @@ lv_obj_t *screen_todos_create(void)
 
     apply_radial_scroll();
     radial_timer = lv_timer_create(radial_timer_cb, 50, NULL);
+
+    lv_timer_t *init_timer = lv_timer_create(initial_scroll_cb, 50, NULL);
+    init_timer->repeat_count = 1;
 
     ESP_LOGI(TAG, "Todos screen created with %d items", (int)TODO_COUNT);
     return screen;
