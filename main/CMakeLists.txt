@@ -8,6 +8,8 @@ idf_component_register(
         "display/screens/screen_menu.c"
         "display/screens/screen_todos.c"
         "display/screens/screen_breathing.c"
+        "display/screens/screen_idle_background.c"
+        "assets/idle_bg_tree.c"
         "display/utils/session_store.c"
     INCLUDE_DIRS
         "."
@@ -16,6 +18,7 @@ idf_component_register(
         "display/encoder"
         "display/screens"
         "display/utils"
+        "assets"
     REQUIRES
         ESP32-S3-LCD-2.8C-V1
         lvgl

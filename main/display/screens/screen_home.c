@@ -68,7 +68,5 @@ lv_obj_t *screen_home_create(void)
 
 void screen_home_encoder_event(lv_indev_data_t *data)
 {
-    if (data->state == LV_INDEV_STATE_PR && data->enc_diff == 0) {
-        ui_manager_switch_screen(SCREEN_MENU);
-    }
+    (void)data;
 }
