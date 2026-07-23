@@ -11,6 +11,9 @@ idf_component_register(
         "display/screens/screen_idle_background.c"
         "assets/idle_bg_tree.c"
         "display/utils/session_store.c"
+        "networking/wifi_manager.c"
+        "networking/web_server.c"
+        "networking/app_state.c"
     INCLUDE_DIRS
         "."
         "display"
@@ -19,9 +22,14 @@ idf_component_register(
         "display/screens"
         "display/utils"
         "assets"
+        "networking"
     REQUIRES
         ESP32-S3-LCD-2.8C-V1
         lvgl
+        esp_wifi
+        esp_http_server
+        nvs_flash
+        esp_netif
     PRIV_REQUIRES
         driver
         esp_driver_gpio

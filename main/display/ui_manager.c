@@ -5,6 +5,7 @@
 #include "screens/screen_breathing.h"
 #include "screens/screen_idle_background.h"
 #include "studybud_theme.h"
+#include "networking/app_state.h"
 #include "esp_log.h"
 #include <math.h>
 
@@ -135,6 +136,7 @@ void ui_manager_init(void)
     /* Load home screen as default */
     lv_scr_load(screens[SCREEN_HOME]);
     current_screen = SCREEN_HOME;
+    app_state_broadcast_screen_change(SCREEN_HOME);
 
     ESP_LOGI(TAG, "UI Manager initialized, showing Home screen");
 }
@@ -149,12 +151,14 @@ void ui_manager_switch_screen(screen_id_t screen)
     ESP_LOGI(TAG, "Switching to screen %d", screen);
     lv_scr_load_anim(screens[screen], LV_SCR_LOAD_ANIM_FADE_ON, 300, 0, false);
     current_screen = screen;
+    app_state_broadcast_screen_change(screen);
 }
 
 void ui_manager_encoder_event(lv_indev_data_t *data)
 {
     /* Forward rotation immediately, even while button is held */
     if (data->enc_diff != 0 && screen_event_handlers[current_screen]) {
+        app_state_broadcast_encoder_event(data->enc_diff > 0 ? "cw" : "ccw", "none");
         lv_indev_data_t fwd;
         fwd.enc_diff = data->enc_diff;
         fwd.state = LV_INDEV_STATE_REL;
@@ -166,6 +170,7 @@ void ui_manager_encoder_event(lv_indev_data_t *data)
         press_start_tick = lv_tick_get();
         waiting_for_release = true;
         long_press_fired = false;
+        app_state_broadcast_encoder_event("none", "press");
 
         if (current_screen != SCREEN_MENU) {
             if (glow_timer) lv_timer_resume(glow_timer);
@@ -177,6 +182,7 @@ void ui_manager_encoder_event(lv_indev_data_t *data)
     if (waiting_for_release && data->state == LV_INDEV_STATE_PR) {
         if (!long_press_fired && lv_tick_elaps(press_start_tick) >= LONG_PRESS_MS) {
             long_press_fired = true;
+            app_state_broadcast_encoder_event("none", "long_press");
             if (current_screen != SCREEN_MENU) {
                 ESP_LOGI(TAG, "Long press -> menu");
                 ui_manager_switch_screen(SCREEN_MENU);
@@ -196,6 +202,8 @@ void ui_manager_encoder_event(lv_indev_data_t *data)
         lv_obj_set_style_opa(glow_overlay, LV_OPA_TRANSP, 0);
 
         if (was_long) return;
+
+        app_state_broadcast_encoder_event("none", "short_press");
 
         /* Short press: forward to screen handler */
         if (current_screen == SCREEN_MENU) {

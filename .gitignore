@@ -14,7 +14,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+/lib/
 lib64/
 parts/
 sdist/
@@ -222,7 +222,6 @@ sdkconfig
 sdkconfig.old
 build/
 managed_components/
-dependencies.lock
 
 # Board reference demo (large, not needed for build)
 ESP32-S3-LCD-2.8C-Demo/
@@ -238,5 +237,22 @@ eim_config.toml
 
 simulator/CMakeCache.txt
 simulator/CMakeFiles/
+simulator/build/
 simulator/_build/
 simulator/lvgl/
+
+# Svelte / SvelteKit
+node_modules/
+.vite/
+.svelte-kit/
+build/
+dist/
+*.local
+.env
+.env.*
+!.env.example
+
+# Editor temporary files
+*.swp
+*.swo
+*~

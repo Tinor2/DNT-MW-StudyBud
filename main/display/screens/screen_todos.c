@@ -1,6 +1,7 @@
 #include "screen_todos.h"
 #include "ui_manager.h"
 #include "studybud_theme.h"
+#include "networking/app_state.h"
 #include "esp_log.h"
 #include <stdlib.h>
 #include <string.h>
@@ -333,6 +334,10 @@ static void complete_task(lv_obj_t *row)
     lv_obj_set_style_text_color(task_labels[idx], lv_color_make(0x80, 0x80, 0x80), 0);
     lv_obj_set_style_bg_opa(task_dots[idx], LV_OPA_40, 0);
 
+    {
+        app_state_broadcast_todo_toggled(idx, todo_items[idx].text, true);
+    }
+
     shuffle_data_t *data = malloc(sizeof(shuffle_data_t));
     data->row = row;
     lv_timer_t *t = lv_timer_create(shuffle_timer_cb, 500, data);
@@ -353,9 +358,12 @@ static void uncomplete_task(lv_obj_t *row)
     lv_obj_set_style_text_color(task_labels[idx], LV_COLOR_TEXT, 0);
     lv_obj_set_style_bg_opa(task_dots[idx], LV_OPA_COVER, 0);
 
+    {
+        app_state_broadcast_todo_toggled(idx, todo_items[idx].text, false);
+    }
+
     update_row_positions();
     update_focus_styles();
-    update_task_count();
     focused_row = row;
     lv_obj_scroll_to_view(focused_row, LV_ANIM_ON);
     update_arrow_visibility();
