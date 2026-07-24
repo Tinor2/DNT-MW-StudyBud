@@ -14,6 +14,7 @@
 #include "nvs_flash.h"
 #include "driver/gpio.h"
 #include "driver/ledc.h"
+#include "driver/pulse_cnt.h"
 #include "esp_adc/adc_oneshot.h"
 #include "I2C_Driver/I2C_Driver.h"
 #include "EXIO/TCA9554PWR.h"
@@ -231,45 +232,78 @@ static void test_encoder(void)
     ESP_LOGI(TAG, "══════ TEST 8: Rotary Encoder ══════");
     ESP_LOGI(TAG, "  Rotate knob and press button — runs until reset");
 
-    /* Remove this task from the watchdog so the infinite poll loop doesn't trigger it */
+    /* Remove this task and the idle task from the watchdog */
     esp_task_wdt_delete(NULL);
+    esp_task_wdt_delete(xTaskGetIdleTaskHandleForCore(0));
 
-    gpio_config_t io_conf = {};
-    io_conf.pin_bit_mask = (1ULL << ENCODER_CLK) | (1ULL << ENCODER_DT) | (1ULL << ENCODER_SW);
-    io_conf.mode = GPIO_MODE_INPUT;
-    io_conf.pull_up_en = GPIO_PULLUP_ENABLE;
-    gpio_config(&io_conf);
+    /* ── Button pin (active-low with internal pull-up) ── */
+    gpio_config_t btn_conf = {};
+    btn_conf.pin_bit_mask = (1ULL << ENCODER_SW);
+    btn_conf.mode = GPIO_MODE_INPUT;
+    btn_conf.pull_up_en = GPIO_PULLUP_ENABLE;
+    gpio_config(&btn_conf);
 
-    int position = 0;
-    int last_clk = gpio_get_level(ENCODER_CLK);
-    int button_was_pressed = 0;
-    int rotations = 0;
+    /* ── Hardware PCNT for quadrature decoding (dual-channel) ── */
+    pcnt_unit_config_t unit_cfg = {};
+    unit_cfg.low_limit  = -32768;
+    unit_cfg.high_limit =  32767;
+    unit_cfg.clk_src   = PCNT_CLK_SRC_DEFAULT;
+
+    pcnt_unit_handle_t pcnt_unit = NULL;
+    ESP_ERROR_CHECK(pcnt_new_unit(&unit_cfg, &pcnt_unit));
+
+    /* Glitch filter: reject pulses shorter than 300 µs */
+    pcnt_glitch_filter_config_t filter_cfg = {};
+    filter_cfg.max_glitch_ns = 10000;
+    ESP_ERROR_CHECK(pcnt_unit_set_glitch_filter(pcnt_unit, &filter_cfg));
+
+    /* Channel A: CLK as edge signal, DT as level signal
+       pos-edge + DT low  → INCREASE (CW)
+       pos-edge + DT high → DECREASE (CCW, level INVERSE flips direction)
+       neg-edge + DT high → INCREASE (CW, level INVERSE flips direction)
+       neg-edge + DT low  → DECREASE (CCW)                           */
+    pcnt_chan_config_t chan_a_cfg = {};
+    chan_a_cfg.edge_gpio_num  = ENCODER_CLK;
+    chan_a_cfg.level_gpio_num = ENCODER_DT;
+    pcnt_channel_handle_t chan_a = NULL;
+    ESP_ERROR_CHECK(pcnt_new_channel(pcnt_unit, &chan_a_cfg, &chan_a));
+    ESP_ERROR_CHECK(pcnt_channel_set_edge_action(chan_a,
+        PCNT_CHANNEL_EDGE_ACTION_INCREASE,
+        PCNT_CHANNEL_EDGE_ACTION_DECREASE));
+    ESP_ERROR_CHECK(pcnt_channel_set_level_action(chan_a,
+        PCNT_CHANNEL_LEVEL_ACTION_INVERSE,
+        PCNT_CHANNEL_LEVEL_ACTION_KEEP));
+
+    ESP_ERROR_CHECK(pcnt_unit_enable(pcnt_unit));
+    ESP_ERROR_CHECK(pcnt_unit_start(pcnt_unit));
+
+    int prev_count = 0;
     int presses = 0;
+    int total_rotations = 0;
+    int button_was_pressed = 0;
 
     while (1) {
-        int clk = gpio_get_level(ENCODER_CLK);
-        int dt  = gpio_get_level(ENCODER_DT);
-        int sw  = gpio_get_level(ENCODER_SW);
+        int count = 0;
+        ESP_ERROR_CHECK(pcnt_unit_get_count(pcnt_unit, &count));
 
-        /* Detect rotation on rising edge of CLK */
-        if (clk == 1 && last_clk == 0) {
-            if (dt != clk) {
-                position++;
-                ESP_LOGI(TAG, "  CW  → pos=%d  (total rotations: %d)", position, ++rotations);
+        if (count != prev_count) {
+            int delta = count - prev_count;
+            if (delta > 0) {
+                ESP_LOGI(TAG, "  CW  → pos=%d  (total rotations: %d)", count, ++total_rotations);
             } else {
-                position--;
-                ESP_LOGI(TAG, "  CCW → pos=%d  (total rotations: %d)", position, ++rotations);
+                ESP_LOGI(TAG, "  CCW → pos=%d  (total rotations: %d)", count, ++total_rotations);
             }
+            prev_count = count;
         }
-        last_clk = clk;
 
         /* Detect button press (active low) */
+        int sw = gpio_get_level(ENCODER_SW);
         if (sw == 0 && !button_was_pressed) {
             ESP_LOGI(TAG, "  BUTTON PRESSED  (total presses: %d)", ++presses);
         }
         button_was_pressed = (sw == 0);
 
-        vTaskDelay(pdMS_TO_TICKS(10));
+        vTaskDelay(pdMS_TO_TICKS(5));
     }
 }
 
