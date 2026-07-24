@@ -30,6 +30,8 @@ static bool long_press_fired = false;
 static lv_obj_t *glow_overlay = NULL;
 static lv_timer_t *glow_timer = NULL;
 
+static lv_obj_t *nav_bubble = NULL;
+
 static void glow_timer_cb(lv_timer_t *timer)
 {
     (void)timer;
@@ -37,6 +39,7 @@ static void glow_timer_cb(lv_timer_t *timer)
 
     if (!waiting_for_release) {
         lv_obj_set_style_opa(glow_overlay, LV_OPA_TRANSP, 0);
+        if (nav_bubble) lv_obj_set_style_opa(nav_bubble, LV_OPA_TRANSP, 0);
         if (glow_timer) {
             lv_timer_pause(glow_timer);
         }
@@ -45,6 +48,7 @@ static void glow_timer_cb(lv_timer_t *timer)
 
     if (long_press_fired) {
         lv_obj_set_style_opa(glow_overlay, LV_OPA_TRANSP, 0);
+        if (nav_bubble) lv_obj_set_style_opa(nav_bubble, LV_OPA_TRANSP, 0);
         if (glow_timer) lv_timer_pause(glow_timer);
         return;
     }
@@ -53,7 +57,9 @@ static void glow_timer_cb(lv_timer_t *timer)
     if (elapsed >= LONG_PRESS_MS) elapsed = LONG_PRESS_MS;
 
     lv_opa_t opa = (lv_opa_t)((uint32_t)GLOW_MAX_OPA * elapsed / LONG_PRESS_MS);
+    lv_opa_t nav_opa = (lv_opa_t)((uint32_t)LV_OPA_40 * elapsed / LONG_PRESS_MS+50);
     lv_obj_set_style_opa(glow_overlay, opa, 0);
+    if (nav_bubble) lv_obj_set_style_opa(nav_bubble, nav_opa, 0);
 }
 
 static void draw_glow_gradient(lv_obj_t *canvas)
@@ -100,6 +106,34 @@ static void create_glow_overlay(void)
     lv_timer_pause(glow_timer);
 }
 
+static void create_nav_bubble(void)
+{
+    lv_obj_t *top_layer = lv_layer_top();
+
+    nav_bubble = lv_obj_create(top_layer);
+    lv_obj_set_size(nav_bubble, 160, 22);
+    lv_obj_align(nav_bubble, LV_ALIGN_TOP_MID, 0, 12);
+
+    lv_obj_set_style_bg_color(nav_bubble, LV_COLOR_PRIMARY, 0);
+    lv_obj_set_style_bg_opa(nav_bubble, LV_OPA_40, 0);
+    lv_obj_set_style_radius(nav_bubble, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_shadow_width(nav_bubble, 0, 0);
+
+    lv_obj_set_style_border_width(nav_bubble, 0, 0);
+    lv_obj_set_style_pad_all(nav_bubble, 0, 0);
+
+    lv_obj_clear_flag(nav_bubble, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_clear_flag(nav_bubble, LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_t *label = lv_label_create(nav_bubble);
+    lv_label_set_text(label, LV_SYMBOL_LEFT "  Menu");
+    lv_obj_set_style_text_font(label, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(label, lv_color_hex(0x000000), 0);
+    lv_obj_center(label);
+
+    lv_obj_set_style_opa(nav_bubble, LV_OPA_TRANSP, 0);
+}
+
 void ui_manager_init(void)
 {
     ESP_LOGI(TAG, "Initializing UI Manager");
@@ -117,6 +151,9 @@ void ui_manager_init(void)
 
     /* Create glow overlay (on top layer, above all screens) */
     create_glow_overlay();
+
+    /* Create navigation bubble (on top layer, above all screens) */
+    create_nav_bubble();
 
     /* Create all screens */
     screens[SCREEN_HOME] = screen_home_create();
@@ -194,6 +231,7 @@ void ui_manager_encoder_event(lv_indev_data_t *data)
 
         if (glow_timer) lv_timer_pause(glow_timer);
         lv_obj_set_style_opa(glow_overlay, LV_OPA_TRANSP, 0);
+        if (nav_bubble) lv_obj_set_style_opa(nav_bubble, LV_OPA_TRANSP, 0);
 
         if (was_long) return;
 

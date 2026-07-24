@@ -4,6 +4,7 @@
 #include "../utils/session_store.h"
 #include "esp_log.h"
 #include <stdint.h>
+#include <stdio.h>
 
 static const char *TAG = "Screen_Breathing";
 

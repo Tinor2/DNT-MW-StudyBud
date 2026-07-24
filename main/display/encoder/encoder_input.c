@@ -1,4 +1,5 @@
 #include "encoder_input.h"
+#include "lvgl.h"
 #include "driver/gpio.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -10,7 +11,7 @@
 static int encoder_position = 0;
 static int last_clk_state = 0;
 static bool last_button_state = true;
-static lv_indev_enc_state_t enc_state = LV_INDEV_STATE_REL;
+static lv_indev_state_t enc_state = LV_INDEV_STATE_REL;
 
 void encoder_init(void)
 {

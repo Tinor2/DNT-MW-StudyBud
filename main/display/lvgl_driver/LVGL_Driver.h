@@ -9,5 +9,13 @@
 #define LCD_H_RES              480
 #define LCD_V_RES              480
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void LVGL_Driver_init(void);
 void LVGL_Driver_loop(void);
+
+#ifdef __cplusplus
+}
+#endif
