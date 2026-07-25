@@ -335,6 +335,7 @@ static void reset_to_selection(void)
     cycle_limit = 3;
     cycles_edit_mode = false;
     current_state = STATE_SELECTION;
+    app_state_get()->breathing_active = false;
 
     update_cycles_text();
     update_focus_styles();

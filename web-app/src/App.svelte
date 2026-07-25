@@ -32,6 +32,10 @@ import { ws } from './lib/stores/websocket.js';
     }
   }
 
+  function sendQuery(type) {
+    ws.send({ type });
+  }
+
   function clearLog() {
     ws.clearLog();
   }
@@ -64,6 +68,21 @@ import { ws } from './lib/stores/websocket.js';
     <div>
       <button on:click={connect} disabled={connected}>Connect</button>
       <button on:click={disconnect} disabled={!connected}>Disconnect</button>
+    </div>
+  </section>
+
+  <section class="query-panel">
+    <h2>Queries</h2>
+    <div class="query-grid">
+      <button on:click={() => sendQuery('ping')} disabled={!connected}>Ping</button>
+      <button on:click={() => sendQuery('full_sync')} disabled={!connected}>Full Sync</button>
+      <button on:click={() => sendQuery('get_screen')} disabled={!connected}>Screen</button>
+      <button on:click={() => sendQuery('get_todos')} disabled={!connected}>Todos</button>
+      <button on:click={() => sendQuery('get_timer')} disabled={!connected}>Timer</button>
+      <button on:click={() => sendQuery('get_presets')} disabled={!connected}>Presets</button>
+      <button on:click={() => sendQuery('get_breathing')} disabled={!connected}>Breathing</button>
+      <button on:click={() => sendQuery('get_water')} disabled={!connected}>Water</button>
+      <button on:click={() => sendQuery('get_settings')} disabled={!connected}>Settings</button>
     </div>
   </section>
 
@@ -116,4 +135,6 @@ import { ws } from './lib/stores/websocket.js';
   .dir { white-space: nowrap; }
   pre { margin: 0; white-space: pre-wrap; word-break: break-all; }
   .send-panel input { flex: 1; }
+  .query-grid { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .query-grid button { flex: 0 0 auto; min-width: 90px; text-align: center; }
 </style>

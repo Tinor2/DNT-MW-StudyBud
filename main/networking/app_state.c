@@ -546,6 +546,89 @@ void app_state_broadcast_todo_toggled(int index, const char *text, bool done)
 }
 
 
+static void handle_get_screen(const char *json, char *resp, size_t resp_len)
+{
+    (void)json;
+    const char *name = (s_state.current_screen >= 0 && s_state.current_screen < 11)
+        ? screen_names[s_state.current_screen] : "unknown";
+    snprintf(resp, resp_len,
+             "{\"type\":\"screen_info\",\"screen_id\":%d,\"screen\":\"%s\"}",
+             s_state.current_screen, name);
+}
+
+static void handle_get_todos(const char *json, char *resp, size_t resp_len)
+{
+    (void)json;
+    int off = snprintf(resp, resp_len, "{\"type\":\"todos_info\",\"tasks\":[");
+    for (int i = 0; i < s_state.todo_count && off < (int)resp_len - 200; i++) {
+        todo_item_t *t = &s_state.todos[i];
+        if (i > 0) off += snprintf(resp + off, resp_len - off, ",");
+        off += snprintf(resp + off, resp_len - off,
+                        "{\"id\":%d,\"text\":\"%s\",\"done\":%s,\"priority\":%d,\"order\":%d}",
+                        t->id, t->text, t->done ? "true" : "false", t->priority, t->order);
+    }
+    snprintf(resp + off, resp_len - off, "]}");
+}
+
+static void handle_get_breathing(const char *json, char *resp, size_t resp_len)
+{
+    (void)json;
+    int off = snprintf(resp, resp_len, "{\"type\":\"breathing_info\",\"exercises\":[");
+    for (int i = 0; i < s_state.exercise_count && off < (int)resp_len - 200; i++) {
+        exercise_t *e = &s_state.exercises[i];
+        if (i > 0) off += snprintf(resp + off, resp_len - off, ",");
+        off += snprintf(resp + off, resp_len - off,
+                        "{\"id\":%d,\"name\":\"%s\",\"inhale\":%d,\"hold\":%d,\"exhale\":%d,\"hold2\":%d}",
+                        e->id, e->name, e->inhale_ms, e->hold_ms, e->exhale_ms, e->hold2_ms);
+    }
+    snprintf(resp + off, resp_len - off,
+             "],\"active\":%s,\"active_id\":%d}",
+             s_state.breathing_active ? "true" : "false", s_state.breathing_exercise_id);
+}
+
+static void handle_get_water(const char *json, char *resp, size_t resp_len)
+{
+    (void)json;
+    snprintf(resp, resp_len,
+             "{\"type\":\"water_info\",\"glasses\":%d,\"goal\":%d}",
+             s_state.water.glasses, s_state.water.goal);
+}
+
+static void handle_get_timer(const char *json, char *resp, size_t resp_len)
+{
+    (void)json;
+    snprintf(resp, resp_len,
+             "{\"type\":\"timer_info\",\"remaining_ms\":%d,\"running\":%s,\"preset_id\":%d,\"phase\":%d}",
+             s_state.timer.remaining_ms,
+             s_state.timer.running ? "true" : "false",
+             s_state.timer.preset_id,
+             s_state.timer.phase);
+}
+
+static void handle_get_presets(const char *json, char *resp, size_t resp_len)
+{
+    (void)json;
+    int off = snprintf(resp, resp_len, "{\"type\":\"presets_info\",\"presets\":[");
+    for (int i = 0; i < s_state.preset_count && off < (int)resp_len - 200; i++) {
+        preset_t *p = &s_state.presets[i];
+        if (i > 0) off += snprintf(resp + off, resp_len - off, ",");
+        off += snprintf(resp + off, resp_len - off,
+                        "{\"id\":%d,\"name\":\"%s\",\"focus\":%d,\"break_duration\":%d,\"is_pomodoro\":%s}",
+                        p->id, p->name, p->focus_ms, p->break_ms, p->is_pomodoro ? "true" : "false");
+    }
+    snprintf(resp + off, resp_len - off, "],\"active_preset_id\":%d}", s_state.active_preset_id);
+}
+
+static void handle_get_settings(const char *json, char *resp, size_t resp_len)
+{
+    (void)json;
+    snprintf(resp, resp_len,
+             "{\"type\":\"settings_info\",\"brightness\":%d,\"volume\":%d,\"idle_timeout\":%d}",
+             s_state.settings.brightness,
+             s_state.settings.volume,
+             s_state.settings.idle_timeout);
+}
+
 void app_state_handle_message(const char *type, const char *json_msg, char *resp, size_t resp_len)
 {
     ESP_LOGI(TAG, "Handling: %s", type);
@@ -553,6 +636,20 @@ void app_state_handle_message(const char *type, const char *json_msg, char *resp
     if (strcmp(type, "ping") == 0) {
         snprintf(resp, resp_len, "{\"type\":\"pong\",\"uptime_ms\":%lld}",
                  (long long)(esp_timer_get_time() / 1000));
+    } else if (strcmp(type, "get_screen") == 0) {
+        handle_get_screen(json_msg, resp, resp_len);
+    } else if (strcmp(type, "get_todos") == 0) {
+        handle_get_todos(json_msg, resp, resp_len);
+    } else if (strcmp(type, "get_breathing") == 0) {
+        handle_get_breathing(json_msg, resp, resp_len);
+    } else if (strcmp(type, "get_water") == 0) {
+        handle_get_water(json_msg, resp, resp_len);
+    } else if (strcmp(type, "get_timer") == 0) {
+        handle_get_timer(json_msg, resp, resp_len);
+    } else if (strcmp(type, "get_presets") == 0) {
+        handle_get_presets(json_msg, resp, resp_len);
+    } else if (strcmp(type, "get_settings") == 0) {
+        handle_get_settings(json_msg, resp, resp_len);
     } else if (strcmp(type, "echo") == 0) {
         char data_buf[128];
         if (find_string(json_msg, "data", data_buf, sizeof(data_buf), NULL)) {

@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 
-const ESP32_IP = process.env.ESP32_IP || 'studybud.local';
+const ESP32_IP = process.env.ESP32_IP || '192.168.0.197';
 
 export default defineConfig({
   plugins: [svelte()],

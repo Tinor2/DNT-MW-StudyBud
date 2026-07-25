@@ -31,9 +31,9 @@ typedef struct {
     const char *text;
     int priority;
     bool completed;
-} todo_item_t;
+} display_todo_t;
 
-static todo_item_t todo_items[] = {
+static display_todo_t todo_items[] = {
     {"Finish project report", 0, false},
     {"Reply to emails",       1, false},
     {"Buy groceries",         2, false},
@@ -112,7 +112,7 @@ static void update_task_count(void)
 
 static lv_obj_t *create_task_row(lv_obj_t *parent, int index)
 {
-    todo_item_t *item = &todo_items[index];
+    display_todo_t *item = &todo_items[index];
 
     lv_obj_t *row = lv_obj_create(parent);
     lv_obj_set_size(row, MAX_ROW_W, LV_SIZE_CONTENT);
