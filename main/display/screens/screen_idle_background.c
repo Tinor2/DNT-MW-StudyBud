@@ -14,6 +14,12 @@ static const char *TAG = "Screen_IdleBG";
 #define MIN_VISIBLE_W 100
 #define ROW_INNER_PAD 12
 
+#define GLOW_SIZE         480
+#define GLOW_CX           240
+#define GLOW_OUTER_R      240
+#define GLOW_THICKNESS    80
+#define GLOW_INNER_R      (GLOW_OUTER_R - GLOW_THICKNESS)
+
 typedef struct {
     const char *name;
     const lv_img_dsc_t *img;
@@ -78,6 +84,27 @@ static lv_color_t compute_avg_color(const lv_img_dsc_t *img)
     return lv_color_make(r, g, b);
 }
 
+static void draw_pulse_gradient(lv_obj_t *canvas, lv_color_t color)
+{
+    for (lv_coord_t y = 0; y < GLOW_SIZE; y++) {
+        lv_coord_t dy = y - GLOW_CX;
+        for (lv_coord_t x = 0; x < GLOW_SIZE; x++) {
+            lv_coord_t dx = x - GLOW_CX;
+            float dist = sqrtf((float)(dx * dx + dy * dy));
+
+            if (dist < GLOW_INNER_R || dist > GLOW_OUTER_R) {
+                lv_canvas_set_px_opa(canvas, x, y, LV_OPA_TRANSP);
+            } else {
+                float t = (dist - GLOW_INNER_R) / (float)GLOW_THICKNESS;
+                float curved = powf(t, 0.6f);
+                lv_opa_t opa = (lv_opa_t)(20 + curved * 180);
+                lv_canvas_set_px_color(canvas, x, y, color);
+                lv_canvas_set_px_opa(canvas, x, y, opa);
+            }
+        }
+    }
+}
+
 static void start_pulse_animation(void)
 {
     if (!pulse_ring) return;
@@ -86,7 +113,7 @@ static void start_pulse_animation(void)
     lv_anim_init(&a);
     lv_anim_set_var(&a, pulse_ring);
     lv_anim_set_exec_cb(&a, (lv_anim_exec_xcb_t)anim_set_opa);
-    lv_anim_set_values(&a, LV_OPA_30, LV_OPA_80);
+    lv_anim_set_values(&a, LV_OPA_30, LV_OPA_COVER);
     lv_anim_set_time(&a, 1500);
     lv_anim_set_playback_time(&a, 1500);
     lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
@@ -276,7 +303,10 @@ static void enter_view_mode(void)
     lv_obj_set_style_opa(fullscreen_img, LV_OPA_TRANSP, 0);
 
     lv_color_t avg = compute_avg_color(backgrounds[selected_index].img);
-    lv_obj_set_style_border_color(pulse_ring, avg, 0);
+    
+    // Draw the radial gradient on the canvas
+    draw_pulse_gradient(pulse_ring, avg);
+    
     lv_obj_clear_flag(pulse_ring, LV_OBJ_FLAG_HIDDEN);
     lv_obj_set_style_opa(pulse_ring, LV_OPA_TRANSP, 0);
 
@@ -344,14 +374,12 @@ lv_obj_t *screen_idle_background_create(void)
     lv_obj_add_flag(fullscreen_img, LV_OBJ_FLAG_HIDDEN);
 
     /* Pulsing ring overlay (hidden by default) */
-    pulse_ring = lv_obj_create(screen);
-    lv_obj_set_size(pulse_ring, 480, 480);
+    pulse_ring = lv_canvas_create(screen);
+    lv_color_t *pulse_buf = lv_mem_alloc(GLOW_SIZE * GLOW_SIZE * sizeof(lv_color32_t));
+    lv_canvas_set_buffer(pulse_ring, pulse_buf, GLOW_SIZE, GLOW_SIZE, LV_IMG_CF_TRUE_COLOR_ALPHA);
+    lv_canvas_fill_bg(pulse_ring, LV_COLOR_PRIMARY, LV_OPA_TRANSP);
+    lv_obj_set_size(pulse_ring, GLOW_SIZE, GLOW_SIZE);
     lv_obj_align(pulse_ring, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_set_style_radius(pulse_ring, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_opa(pulse_ring, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(pulse_ring, 12, 0);
-    lv_obj_set_style_border_color(pulse_ring, LV_COLOR_PRIMARY, 0);
-    lv_obj_set_style_border_opa(pulse_ring, LV_OPA_TRANSP, 0);
     lv_obj_clear_flag(pulse_ring, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_clear_flag(pulse_ring, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(pulse_ring, LV_OBJ_FLAG_HIDDEN);

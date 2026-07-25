@@ -35,13 +35,14 @@ static const menu_item_t menu_items[] = {
     { LV_SYMBOL_BELL,      "Water",         SCREEN_WATER },
     { LV_SYMBOL_REFRESH,   "Breathing",     SCREEN_BREATHING },
     { LV_SYMBOL_IMAGE,     "Backgrounds",   SCREEN_BACKGROUNDS },
+    { LV_SYMBOL_EYE_OPEN,  "Sleep",         SCREEN_SLEEP },
     { LV_SYMBOL_SETTINGS,  "Settings",      SCREEN_SETTINGS },
 };
 static const int menu_count = sizeof(menu_items) / sizeof(menu_items[0]);
 
-static lv_obj_t *row_icons[7];
-static lv_obj_t *row_labels[7];
-static lv_obj_t *row_objects[7];
+static lv_obj_t *row_icons[8];
+static lv_obj_t *row_labels[8];
+static lv_obj_t *row_objects[8];
 static lv_obj_t *focused_row = NULL;
 
 static void update_focus_styles(void);

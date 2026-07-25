@@ -9,8 +9,10 @@ idf_component_register(
         "display/screens/screen_todos.c"
         "display/screens/screen_breathing.c"
         "display/screens/screen_idle_background.c"
+        "display/screens/screen_sleep.c"
         "assets/idle_bg_tree.c"
         "display/utils/session_store.c"
+        "display/utils/sleep_store.c"
     INCLUDE_DIRS
         "."
         "display"

@@ -4,6 +4,7 @@
 #include "screens/screen_todos.h"
 #include "screens/screen_breathing.h"
 #include "screens/screen_idle_background.h"
+#include "screens/screen_sleep.h"
 #include "studybud_theme.h"
 #include "esp_log.h"
 #include <math.h>
@@ -57,9 +58,8 @@ static void glow_timer_cb(lv_timer_t *timer)
     if (elapsed >= LONG_PRESS_MS) elapsed = LONG_PRESS_MS;
 
     lv_opa_t opa = (lv_opa_t)((uint32_t)GLOW_MAX_OPA * elapsed / LONG_PRESS_MS);
-    lv_opa_t nav_opa = (lv_opa_t)((uint32_t)LV_OPA_40 * elapsed / LONG_PRESS_MS+50);
     lv_obj_set_style_opa(glow_overlay, opa, 0);
-    if (nav_bubble) lv_obj_set_style_opa(nav_bubble, nav_opa, 0);
+    if (nav_bubble) lv_obj_set_style_opa(nav_bubble, opa, 0);
 }
 
 static void draw_glow_gradient(lv_obj_t *canvas)
@@ -161,6 +161,7 @@ void ui_manager_init(void)
     screens[SCREEN_TODOS] = screen_todos_create();
     screens[SCREEN_BREATHING] = screen_breathing_create();
     screens[SCREEN_BACKGROUNDS] = screen_idle_background_create();
+    screens[SCREEN_SLEEP] = screen_sleep_create();
 
     /* Register event handlers */
     screen_event_handlers[SCREEN_HOME] = screen_home_encoder_event;
@@ -168,6 +169,7 @@ void ui_manager_init(void)
     screen_event_handlers[SCREEN_TODOS] = screen_todos_encoder_event;
     screen_event_handlers[SCREEN_BREATHING] = screen_breathing_encoder_event;
     screen_event_handlers[SCREEN_BACKGROUNDS] = screen_idle_background_encoder_event;
+    screen_event_handlers[SCREEN_SLEEP] = screen_sleep_encoder_event;
 
     /* Load home screen as default */
     lv_scr_load(screens[SCREEN_HOME]);

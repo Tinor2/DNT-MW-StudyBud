@@ -45,8 +45,10 @@ add_library(studybud_screens STATIC
     ${SCREEN_DIR}/screens/screen_todos.c
     ${SCREEN_DIR}/screens/screen_breathing.c
     ${SCREEN_DIR}/screens/screen_idle_background.c
+    ${SCREEN_DIR}/screens/screen_sleep.c
     ${SCREEN_DIR}/../assets/idle_bg_tree.c
     ${SCREEN_DIR}/utils/session_store.c
+    ${SCREEN_DIR}/utils/sleep_store.c
     ${SCREEN_DIR}/ui_manager.c
 )
 
