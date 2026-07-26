@@ -134,7 +134,7 @@
 #define LV_FONT_MONTSERRAT_30 0
 #define LV_FONT_MONTSERRAT_32 0
 #define LV_FONT_MONTSERRAT_34 0
-#define LV_FONT_MONTSERRAT_36 0
+#define LV_FONT_MONTSERRAT_36 1
 #define LV_FONT_MONTSERRAT_38 0
 #define LV_FONT_MONTSERRAT_40 0
 #define LV_FONT_MONTSERRAT_42 0
@@ -197,7 +197,7 @@
  *==================*/
 #define LV_USE_ANIMIMG    0
 #define LV_USE_CALENDAR   0
-#define LV_USE_CHART      0
+#define LV_USE_CHART      1
 #define LV_USE_COLORWHEEL 0
 #define LV_USE_IMGBTN     0
 #define LV_USE_KEYBOARD   0

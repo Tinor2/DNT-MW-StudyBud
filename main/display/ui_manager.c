@@ -4,6 +4,11 @@
 #include "screens/screen_todos.h"
 #include "screens/screen_breathing.h"
 #include "screens/screen_idle_background.h"
+#include "screens/screen_sleep.h"
+#include "screens/screen_timer_presets.h"
+#include "screens/screen_timer_edit.h"
+#include "screens/screen_timer.h"
+#include "app_state.h"
 #include "studybud_theme.h"
 #include "networking/app_state.h"
 #include "esp_log.h"
@@ -17,6 +22,7 @@ static lv_obj_t *screens[SCREEN_COUNT] = {0};
 static void (*screen_event_handlers[SCREEN_COUNT])(lv_indev_data_t *) = {0};
 
 #define LONG_PRESS_MS 800
+#define DEAD_ZONE_MS  (LONG_PRESS_MS / 5)
 #define GLOW_MAX_OPA  100
 #define DISPLAY_SIZE  480
 #define DISPLAY_CX    240
@@ -31,6 +37,8 @@ static bool long_press_fired = false;
 static lv_obj_t *glow_overlay = NULL;
 static lv_timer_t *glow_timer = NULL;
 
+static lv_obj_t *nav_bubble = NULL;
+
 static void glow_timer_cb(lv_timer_t *timer)
 {
     (void)timer;
@@ -38,6 +46,7 @@ static void glow_timer_cb(lv_timer_t *timer)
 
     if (!waiting_for_release) {
         lv_obj_set_style_opa(glow_overlay, LV_OPA_TRANSP, 0);
+        if (nav_bubble) lv_obj_set_style_opa(nav_bubble, LV_OPA_TRANSP, 0);
         if (glow_timer) {
             lv_timer_pause(glow_timer);
         }
@@ -46,6 +55,7 @@ static void glow_timer_cb(lv_timer_t *timer)
 
     if (long_press_fired) {
         lv_obj_set_style_opa(glow_overlay, LV_OPA_TRANSP, 0);
+        if (nav_bubble) lv_obj_set_style_opa(nav_bubble, LV_OPA_TRANSP, 0);
         if (glow_timer) lv_timer_pause(glow_timer);
         return;
     }
@@ -55,6 +65,7 @@ static void glow_timer_cb(lv_timer_t *timer)
 
     lv_opa_t opa = (lv_opa_t)((uint32_t)GLOW_MAX_OPA * elapsed / LONG_PRESS_MS);
     lv_obj_set_style_opa(glow_overlay, opa, 0);
+    if (nav_bubble) lv_obj_set_style_opa(nav_bubble, opa, 0);
 }
 
 static void draw_glow_gradient(lv_obj_t *canvas)
@@ -101,6 +112,34 @@ static void create_glow_overlay(void)
     lv_timer_pause(glow_timer);
 }
 
+static void create_nav_bubble(void)
+{
+    lv_obj_t *top_layer = lv_layer_top();
+
+    nav_bubble = lv_obj_create(top_layer);
+    lv_obj_set_size(nav_bubble, 160, 22);
+    lv_obj_align(nav_bubble, LV_ALIGN_TOP_MID, 0, 12);
+
+    lv_obj_set_style_bg_color(nav_bubble, LV_COLOR_PRIMARY, 0);
+    lv_obj_set_style_bg_opa(nav_bubble, LV_OPA_40, 0);
+    lv_obj_set_style_radius(nav_bubble, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_shadow_width(nav_bubble, 0, 0);
+
+    lv_obj_set_style_border_width(nav_bubble, 0, 0);
+    lv_obj_set_style_pad_all(nav_bubble, 0, 0);
+
+    lv_obj_clear_flag(nav_bubble, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_clear_flag(nav_bubble, LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_t *label = lv_label_create(nav_bubble);
+    lv_label_set_text(label, LV_SYMBOL_LEFT "  Menu");
+    lv_obj_set_style_text_font(label, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(label, lv_color_hex(0x000000), 0);
+    lv_obj_center(label);
+
+    lv_obj_set_style_opa(nav_bubble, LV_OPA_TRANSP, 0);
+}
+
 void ui_manager_init(void)
 {
     ESP_LOGI(TAG, "Initializing UI Manager");
@@ -119,12 +158,20 @@ void ui_manager_init(void)
     /* Create glow overlay (on top layer, above all screens) */
     create_glow_overlay();
 
+    /* Create navigation bubble (on top layer, above all screens) */
+    create_nav_bubble();
+
     /* Create all screens */
+    app_state_init();
     screens[SCREEN_HOME] = screen_home_create();
     screens[SCREEN_MENU] = screen_menu_create();
     screens[SCREEN_TODOS] = screen_todos_create();
     screens[SCREEN_BREATHING] = screen_breathing_create();
     screens[SCREEN_BACKGROUNDS] = screen_idle_background_create();
+    screens[SCREEN_SLEEP] = screen_sleep_create();
+    screens[SCREEN_TIMER_PRESETS] = screen_timer_presets_create();
+    screens[SCREEN_TIMER_EDIT] = screen_timer_edit_create();
+    screens[SCREEN_TIMER] = screen_timer_create();
 
     /* Register event handlers */
     screen_event_handlers[SCREEN_HOME] = screen_home_encoder_event;
@@ -132,6 +179,10 @@ void ui_manager_init(void)
     screen_event_handlers[SCREEN_TODOS] = screen_todos_encoder_event;
     screen_event_handlers[SCREEN_BREATHING] = screen_breathing_encoder_event;
     screen_event_handlers[SCREEN_BACKGROUNDS] = screen_idle_background_encoder_event;
+    screen_event_handlers[SCREEN_SLEEP] = screen_sleep_encoder_event;
+    screen_event_handlers[SCREEN_TIMER_PRESETS] = screen_timer_presets_encoder_event;
+    screen_event_handlers[SCREEN_TIMER_EDIT] = screen_timer_edit_encoder_event;
+    screen_event_handlers[SCREEN_TIMER] = screen_timer_encoder_event;
 
     /* Load home screen as default */
     lv_scr_load(screens[SCREEN_HOME]);
@@ -194,16 +245,22 @@ void ui_manager_encoder_event(lv_indev_data_t *data)
     /* Button released: fire short press action if it wasn't a long press */
     if (data->state == LV_INDEV_STATE_REL && waiting_for_release) {
         bool was_long = long_press_fired;
+        uint32_t held_ms = lv_tick_elaps(press_start_tick);
         waiting_for_release = false;
         press_start_tick = 0;
         long_press_fired = false;
 
         if (glow_timer) lv_timer_pause(glow_timer);
         lv_obj_set_style_opa(glow_overlay, LV_OPA_TRANSP, 0);
+        if (nav_bubble) lv_obj_set_style_opa(nav_bubble, LV_OPA_TRANSP, 0);
 
         if (was_long) return;
 
         app_state_broadcast_encoder_event("none", "short_press");
+
+        /* Ignore presses held longer than dead zone but shorter than long press
+         * — prevents accidental activation from holds that were slightly too long */
+        if (held_ms > DEAD_ZONE_MS) return;
 
         /* Short press: forward to screen handler */
         if (current_screen == SCREEN_MENU) {

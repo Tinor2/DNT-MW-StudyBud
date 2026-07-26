@@ -1,4 +1,5 @@
 #include "encoder_input.h"
+#include "lvgl.h"
 #include "driver/gpio.h"
 #include "esp_log.h"
 

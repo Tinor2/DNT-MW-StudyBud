@@ -45,8 +45,18 @@ add_library(studybud_screens STATIC
     ${SCREEN_DIR}/screens/screen_todos.c
     ${SCREEN_DIR}/screens/screen_breathing.c
     ${SCREEN_DIR}/screens/screen_idle_background.c
+    ${SCREEN_DIR}/screens/screen_sleep.c
+    ${SCREEN_DIR}/screens/screen_timer_presets.c
+    ${SCREEN_DIR}/screens/screen_timer_edit.c
+    ${SCREEN_DIR}/screens/screen_timer.c
     ${SCREEN_DIR}/../assets/idle_bg_tree.c
+    ${SCREEN_DIR}/../assets/app_logo.c
+    ${SCREEN_DIR}/../assets/todo_logo.c
+    ${SCREEN_DIR}/../assets/timer_logo.c
     ${SCREEN_DIR}/utils/session_store.c
+    ${SCREEN_DIR}/utils/sleep_store.c
+    ${SCREEN_DIR}/utils/timer_store.c
+    ${SCREEN_DIR}/app_state.c
     ${SCREEN_DIR}/ui_manager.c
 )
 

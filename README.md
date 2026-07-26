@@ -28,3 +28,22 @@ idf.py build
 idf.py -p /dev/cu.usbmodemXXXX flash
 idf.py -p /dev/cu.usbmodemXXXX monitor
 ```
+### Run simulator
+   Build
+   ```bash
+   cd && cd Desktop/DNT-MW-STUDYBUD && cd simulator
+   # cmake -B build #ONLY if the build folder doesnt already exist
+   cmake --build build
+   ```
+
+   Run
+   ```bash
+   cd && cd Desktop/DNT-MW-STUDYBUD && cd simulator && ./build/studybud_sim
+   # change the second cd based on the location of the repository on your machine
+   ```
+   
+   Run and Build
+   ```bash
+      cd && cd Desktop/DNT-MW-STUDYBUD && cd simulator && cmake --build build && ./build/studybud_sim
+   ```
+
