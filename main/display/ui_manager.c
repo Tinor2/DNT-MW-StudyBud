@@ -5,6 +5,10 @@
 #include "screens/screen_breathing.h"
 #include "screens/screen_idle_background.h"
 #include "screens/screen_sleep.h"
+#include "screens/screen_timer_presets.h"
+#include "screens/screen_timer_edit.h"
+#include "screens/screen_timer.h"
+#include "app_state.h"
 #include "studybud_theme.h"
 #include "esp_log.h"
 #include <math.h>
@@ -17,6 +21,7 @@ static lv_obj_t *screens[SCREEN_COUNT] = {0};
 static void (*screen_event_handlers[SCREEN_COUNT])(lv_indev_data_t *) = {0};
 
 #define LONG_PRESS_MS 800
+#define DEAD_ZONE_MS  (LONG_PRESS_MS / 5)
 #define GLOW_MAX_OPA  100
 #define DISPLAY_SIZE  480
 #define DISPLAY_CX    240
@@ -156,12 +161,16 @@ void ui_manager_init(void)
     create_nav_bubble();
 
     /* Create all screens */
+    app_state_init();
     screens[SCREEN_HOME] = screen_home_create();
     screens[SCREEN_MENU] = screen_menu_create();
     screens[SCREEN_TODOS] = screen_todos_create();
     screens[SCREEN_BREATHING] = screen_breathing_create();
     screens[SCREEN_BACKGROUNDS] = screen_idle_background_create();
     screens[SCREEN_SLEEP] = screen_sleep_create();
+    screens[SCREEN_TIMER_PRESETS] = screen_timer_presets_create();
+    screens[SCREEN_TIMER_EDIT] = screen_timer_edit_create();
+    screens[SCREEN_TIMER] = screen_timer_create();
 
     /* Register event handlers */
     screen_event_handlers[SCREEN_HOME] = screen_home_encoder_event;
@@ -170,6 +179,9 @@ void ui_manager_init(void)
     screen_event_handlers[SCREEN_BREATHING] = screen_breathing_encoder_event;
     screen_event_handlers[SCREEN_BACKGROUNDS] = screen_idle_background_encoder_event;
     screen_event_handlers[SCREEN_SLEEP] = screen_sleep_encoder_event;
+    screen_event_handlers[SCREEN_TIMER_PRESETS] = screen_timer_presets_encoder_event;
+    screen_event_handlers[SCREEN_TIMER_EDIT] = screen_timer_edit_encoder_event;
+    screen_event_handlers[SCREEN_TIMER] = screen_timer_encoder_event;
 
     /* Load home screen as default */
     lv_scr_load(screens[SCREEN_HOME]);
@@ -227,6 +239,7 @@ void ui_manager_encoder_event(lv_indev_data_t *data)
     /* Button released: fire short press action if it wasn't a long press */
     if (data->state == LV_INDEV_STATE_REL && waiting_for_release) {
         bool was_long = long_press_fired;
+        uint32_t held_ms = lv_tick_elaps(press_start_tick);
         waiting_for_release = false;
         press_start_tick = 0;
         long_press_fired = false;
@@ -236,6 +249,10 @@ void ui_manager_encoder_event(lv_indev_data_t *data)
         if (nav_bubble) lv_obj_set_style_opa(nav_bubble, LV_OPA_TRANSP, 0);
 
         if (was_long) return;
+
+        /* Ignore presses held longer than dead zone but shorter than long press
+         * — prevents accidental activation from holds that were slightly too long */
+        if (held_ms > DEAD_ZONE_MS) return;
 
         /* Short press: forward to screen handler */
         if (current_screen == SCREEN_MENU) {
