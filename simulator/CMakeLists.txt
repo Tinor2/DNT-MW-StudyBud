@@ -66,6 +66,7 @@ target_include_directories(studybud_screens PUBLIC
     ${SCREEN_DIR}/encoder
     ${SCREEN_DIR}/screens
     ${SCREEN_DIR}/utils
+    ${CMAKE_SOURCE_DIR}/../main
     ${CMAKE_SOURCE_DIR}/../main/assets
     ${CMAKE_SOURCE_DIR}
     ${LVGL_DIR}

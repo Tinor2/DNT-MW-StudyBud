@@ -10,7 +10,6 @@
 #include "screens/screen_timer.h"
 #include "app_state.h"
 #include "studybud_theme.h"
-#include "networking/app_state.h"
 #include "esp_log.h"
 #include <math.h>
 
@@ -162,7 +161,7 @@ void ui_manager_init(void)
     create_nav_bubble();
 
     /* Create all screens */
-    app_state_init();
+    app_state_init(NULL);
     screens[SCREEN_HOME] = screen_home_create();
     screens[SCREEN_MENU] = screen_menu_create();
     screens[SCREEN_TODOS] = screen_todos_create();

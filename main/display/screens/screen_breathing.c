@@ -2,7 +2,7 @@
 #include "ui_manager.h"
 #include "studybud_theme.h"
 #include "../utils/session_store.h"
-#include "networking/app_state.h"
+#include "../app_state.h"
 #include "esp_log.h"
 #include <stdint.h>
 #include <stdio.h>

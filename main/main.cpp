@@ -13,9 +13,10 @@
 #include "networking/web_server.h"
 
 static const char *TAG = "StudyBud";
-
-#define WIFI_SSID      "Optus_0253C6"
-#define WIFI_PASSWORD  "chumssawerMg9QT"
+//#define WIFI_SSID      "Optus_0253C6"
+#define WIFI_SSID      "RJA-BYOD"
+//#define WIFI_PASSWORD  "chumssawerMg9QT"
+#define WIFI_PASSWORD  "Rusts@il#427"
 
 extern "C" void app_main(void)
 {
