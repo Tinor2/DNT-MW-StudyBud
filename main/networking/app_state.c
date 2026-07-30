@@ -1,4 +1,4 @@
-#include "app_state.h"
+#include "../display/app_state.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -83,6 +83,11 @@ app_state_t *app_state_get(void)
     return &s_state;
 }
 
+timer_state_t *app_state_get_timer(void)
+{
+    return &s_state.timer;
+}
+
 static const char *find_field(const char *json, const char *key)
 {
     char needle[48];
@@ -133,17 +138,34 @@ static void broadcast_state(const char *type, const char *json_body)
     s_broadcast(msg);
 }
 
+static void json_escape(const char *in, char *out, size_t out_len)
+{
+    size_t j = 0;
+    for (const char *p = in; *p && j < out_len - 1; p++) {
+        if (*p == '"' || *p == '\\') {
+            if (j + 2 >= out_len - 1) break;
+            out[j++] = '\\';
+            out[j++] = *p;
+        } else {
+            out[j++] = *p;
+        }
+    }
+    out[j] = '\0';
+}
+
 static void broadcast_todo_sync(void)
 {
     if (!s_broadcast) return;
     char msg[MAX_BROADCAST];
     int off = snprintf(msg, MAX_BROADCAST, "{\"type\":\"todo_sync\",\"tasks\":[");
+    char esc[MAX_TODO_LEN * 2];
     for (int i = 0; i < s_state.todo_count && off < MAX_BROADCAST - 200; i++) {
         todo_item_t *t = &s_state.todos[i];
         if (i > 0) off += snprintf(msg + off, MAX_BROADCAST - off, ",");
+        json_escape(t->text, esc, sizeof(esc));
         off += snprintf(msg + off, MAX_BROADCAST - off,
                         "{\"id\":%d,\"text\":\"%s\",\"done\":%s,\"priority\":%d,\"order\":%d}",
-                        t->id, t->text, t->done ? "true" : "false", t->priority, t->order);
+                        t->id, esc, t->done ? "true" : "false", t->priority, t->order);
     }
     snprintf(msg + off, MAX_BROADCAST - off, "]}");
     s_broadcast(msg);
@@ -154,12 +176,14 @@ static void broadcast_preset_sync(void)
     if (!s_broadcast) return;
     char msg[MAX_BROADCAST];
     int off = snprintf(msg, MAX_BROADCAST, "{\"type\":\"presets_sync\",\"presets\":[");
+    char esc[MAX_NAME_LEN * 2];
     for (int i = 0; i < s_state.preset_count && off < MAX_BROADCAST - 200; i++) {
         preset_t *p = &s_state.presets[i];
         if (i > 0) off += snprintf(msg + off, MAX_BROADCAST - off, ",");
+        json_escape(p->name, esc, sizeof(esc));
         off += snprintf(msg + off, MAX_BROADCAST - off,
                         "{\"id\":%d,\"name\":\"%s\",\"focus\":%d,\"break_duration\":%d,\"is_pomodoro\":%s}",
-                        p->id, p->name, p->focus_ms, p->break_ms, p->is_pomodoro ? "true" : "false");
+                        p->id, esc, p->focus_ms, p->break_ms, p->is_pomodoro ? "true" : "false");
     }
     snprintf(msg + off, MAX_BROADCAST - off, "],\"active_preset_id\":%d}", s_state.active_preset_id);
     s_broadcast(msg);
@@ -192,13 +216,15 @@ static void broadcast_breathing_sync(void)
 {
     if (!s_broadcast) return;
     char msg[MAX_BROADCAST];
+    char esc[MAX_NAME_LEN * 2];
     int off = snprintf(msg, MAX_BROADCAST, "{\"type\":\"breathing_sync\",\"exercises\":[");
     for (int i = 0; i < s_state.exercise_count && off < MAX_BROADCAST - 200; i++) {
         exercise_t *e = &s_state.exercises[i];
         if (i > 0) off += snprintf(msg + off, MAX_BROADCAST - off, ",");
+        json_escape(e->name, esc, sizeof(esc));
         off += snprintf(msg + off, MAX_BROADCAST - off,
                         "{\"id\":%d,\"name\":\"%s\",\"inhale\":%d,\"hold\":%d,\"exhale\":%d,\"hold2\":%d}",
-                        e->id, e->name, e->inhale_ms, e->hold_ms, e->exhale_ms, e->hold2_ms);
+                        e->id, esc, e->inhale_ms, e->hold_ms, e->exhale_ms, e->hold2_ms);
     }
     snprintf(msg + off, MAX_BROADCAST - off, "],\"active\":%s,\"active_id\":%d}",
              s_state.breathing_active ? "true" : "false", s_state.breathing_exercise_id);
@@ -241,23 +267,27 @@ void app_state_broadcast_encoder_event(const char *direction, const char *press_
 
 void app_state_send_full_sync(char *resp, size_t resp_len)
 {
+    char esc[MAX_TODO_LEN * 2];
     int off = snprintf(resp, resp_len, "{\"type\":\"full_sync\",\"todos\":[");
 
     for (int i = 0; i < s_state.todo_count && off < (int)resp_len - 200; i++) {
         todo_item_t *t = &s_state.todos[i];
         if (i > 0) off += snprintf(resp + off, resp_len - off, ",");
+        json_escape(t->text, esc, sizeof(esc));
         off += snprintf(resp + off, resp_len - off,
                         "{\"id\":%d,\"text\":\"%s\",\"done\":%s,\"priority\":%d,\"order\":%d}",
-                        t->id, t->text, t->done ? "true" : "false", t->priority, t->order);
+                        t->id, esc, t->done ? "true" : "false", t->priority, t->order);
     }
 
     off += snprintf(resp + off, resp_len - off, "],\"presets\":[");
+    char esc2[MAX_NAME_LEN * 2];
     for (int i = 0; i < s_state.preset_count && off < (int)resp_len - 200; i++) {
         preset_t *p = &s_state.presets[i];
         if (i > 0) off += snprintf(resp + off, resp_len - off, ",");
+        json_escape(p->name, esc2, sizeof(esc2));
         off += snprintf(resp + off, resp_len - off,
                         "{\"id\":%d,\"name\":\"%s\",\"focus\":%d,\"break_duration\":%d,\"is_pomodoro\":%s}",
-                        p->id, p->name, p->focus_ms, p->break_ms, p->is_pomodoro ? "true" : "false");
+                        p->id, esc2, p->focus_ms, p->break_ms, p->is_pomodoro ? "true" : "false");
     }
 
     off += snprintf(resp + off, resp_len - off,
@@ -538,10 +568,12 @@ static void handle_settings_update(const char *json, char *resp, size_t resp_len
 void app_state_broadcast_todo_toggled(int index, const char *text, bool done)
 {
     if (!s_broadcast) return;
+    char esc[MAX_TODO_LEN * 2];
+    json_escape(text, esc, sizeof(esc));
     char msg[MAX_BROADCAST];
     snprintf(msg, MAX_BROADCAST,
              "{\"type\":\"todo_toggled\",\"index\":%d,\"text\":\"%s\",\"done\":%s}",
-             index, text, done ? "true" : "false");
+             index, esc, done ? "true" : "false");
     s_broadcast(msg);
 }
 
@@ -559,13 +591,15 @@ static void handle_get_screen(const char *json, char *resp, size_t resp_len)
 static void handle_get_todos(const char *json, char *resp, size_t resp_len)
 {
     (void)json;
+    char esc[MAX_TODO_LEN * 2];
     int off = snprintf(resp, resp_len, "{\"type\":\"todos_info\",\"tasks\":[");
     for (int i = 0; i < s_state.todo_count && off < (int)resp_len - 200; i++) {
         todo_item_t *t = &s_state.todos[i];
         if (i > 0) off += snprintf(resp + off, resp_len - off, ",");
+        json_escape(t->text, esc, sizeof(esc));
         off += snprintf(resp + off, resp_len - off,
                         "{\"id\":%d,\"text\":\"%s\",\"done\":%s,\"priority\":%d,\"order\":%d}",
-                        t->id, t->text, t->done ? "true" : "false", t->priority, t->order);
+                        t->id, esc, t->done ? "true" : "false", t->priority, t->order);
     }
     snprintf(resp + off, resp_len - off, "]}");
 }
@@ -573,13 +607,15 @@ static void handle_get_todos(const char *json, char *resp, size_t resp_len)
 static void handle_get_breathing(const char *json, char *resp, size_t resp_len)
 {
     (void)json;
+    char esc[MAX_NAME_LEN * 2];
     int off = snprintf(resp, resp_len, "{\"type\":\"breathing_info\",\"exercises\":[");
     for (int i = 0; i < s_state.exercise_count && off < (int)resp_len - 200; i++) {
         exercise_t *e = &s_state.exercises[i];
         if (i > 0) off += snprintf(resp + off, resp_len - off, ",");
+        json_escape(e->name, esc, sizeof(esc));
         off += snprintf(resp + off, resp_len - off,
                         "{\"id\":%d,\"name\":\"%s\",\"inhale\":%d,\"hold\":%d,\"exhale\":%d,\"hold2\":%d}",
-                        e->id, e->name, e->inhale_ms, e->hold_ms, e->exhale_ms, e->hold2_ms);
+                        e->id, esc, e->inhale_ms, e->hold_ms, e->exhale_ms, e->hold2_ms);
     }
     snprintf(resp + off, resp_len - off,
              "],\"active\":%s,\"active_id\":%d}",
@@ -608,13 +644,15 @@ static void handle_get_timer(const char *json, char *resp, size_t resp_len)
 static void handle_get_presets(const char *json, char *resp, size_t resp_len)
 {
     (void)json;
+    char esc[MAX_NAME_LEN * 2];
     int off = snprintf(resp, resp_len, "{\"type\":\"presets_info\",\"presets\":[");
     for (int i = 0; i < s_state.preset_count && off < (int)resp_len - 200; i++) {
         preset_t *p = &s_state.presets[i];
         if (i > 0) off += snprintf(resp + off, resp_len - off, ",");
+        json_escape(p->name, esc, sizeof(esc));
         off += snprintf(resp + off, resp_len - off,
                         "{\"id\":%d,\"name\":\"%s\",\"focus\":%d,\"break_duration\":%d,\"is_pomodoro\":%s}",
-                        p->id, p->name, p->focus_ms, p->break_ms, p->is_pomodoro ? "true" : "false");
+                        p->id, esc, p->focus_ms, p->break_ms, p->is_pomodoro ? "true" : "false");
     }
     snprintf(resp + off, resp_len - off, "],\"active_preset_id\":%d}", s_state.active_preset_id);
 }
@@ -652,8 +690,10 @@ void app_state_handle_message(const char *type, const char *json_msg, char *resp
         handle_get_settings(json_msg, resp, resp_len);
     } else if (strcmp(type, "echo") == 0) {
         char data_buf[128];
+        char esc[256];
         if (find_string(json_msg, "data", data_buf, sizeof(data_buf), NULL)) {
-            snprintf(resp, resp_len, "{\"type\":\"echo\",\"data\":\"%s\"}", data_buf);
+            json_escape(data_buf, esc, sizeof(esc));
+            snprintf(resp, resp_len, "{\"type\":\"echo\",\"data\":\"%s\"}", esc);
         } else {
             snprintf(resp, resp_len, "{\"type\":\"echo\",\"data\":null}");
         }

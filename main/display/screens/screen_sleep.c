@@ -9,7 +9,7 @@
 #include <time.h>
 
 #ifdef LV_USE_CHART
-#include "lvgl/src/extra/widgets/chart/lv_chart.h"
+#include "extra/widgets/chart/lv_chart.h"
 #endif
 
 static const char *TAG = "Screen_Sleep";

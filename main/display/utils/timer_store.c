@@ -1,69 +1,94 @@
 #include "timer_store.h"
+#include "../app_state.h"
 #include <string.h>
 #include "esp_log.h"
 
 static const char *TAG = "Timer_Store";
 
-static timer_preset_t presets[TIMER_STORE_MAX_PRESETS];
-static int preset_count = 0;
-static int next_id = 1;
+static timer_preset_t s_cache[TIMER_STORE_MAX_PRESETS];
+static int s_count = 0;
+
+static void preset_to_timer(const preset_t *src, timer_preset_t *dst)
+{
+    dst->id = src->id;
+    strncpy(dst->name, src->name, TIMER_STORE_NAME_LEN - 1);
+    dst->name[TIMER_STORE_NAME_LEN - 1] = '\0';
+    dst->type = src->is_pomodoro ? TIMER_TYPE_POMODORO : TIMER_TYPE_STANDARD;
+    dst->session_sec = src->focus_ms / 1000;
+    dst->short_break_sec = src->break_ms / 1000;
+    dst->long_break_sec = src->is_pomodoro ? (src->break_ms * 3 / 1000) : (src->break_ms / 1000);
+    dst->duration_sec = src->focus_ms / 1000;
+    dst->is_default_pomodoro = false;
+}
+
+static void timer_to_preset(const timer_preset_t *src, preset_t *dst)
+{
+    dst->id = src->id;
+    strncpy(dst->name, src->name, MAX_NAME_LEN - 1);
+    dst->name[MAX_NAME_LEN - 1] = '\0';
+    dst->is_pomodoro = (src->type == TIMER_TYPE_POMODORO);
+    dst->focus_ms = src->session_sec * 1000;
+    dst->break_ms = src->short_break_sec * 1000;
+}
+
+static void rebuild_cache(void)
+{
+    app_state_t *state = app_state_get();
+    s_count = state->preset_count;
+    if (s_count > TIMER_STORE_MAX_PRESETS) s_count = TIMER_STORE_MAX_PRESETS;
+    for (int i = 0; i < s_count; i++) {
+        preset_to_timer(&state->presets[i], &s_cache[i]);
+    }
+}
 
 void timer_store_init(void)
 {
-    preset_count = 0;
-    next_id = 1;
-    memset(presets, 0, sizeof(presets));
-
-    timer_preset_t default_pomo;
-    memset(&default_pomo, 0, sizeof(default_pomo));
-    default_pomo.id = next_id++;
-    strncpy(default_pomo.name, "Pomodoro", TIMER_STORE_NAME_LEN - 1);
-    default_pomo.type = TIMER_TYPE_POMODORO;
-    default_pomo.session_sec = 25 * 60;
-    default_pomo.short_break_sec = 5 * 60;
-    default_pomo.long_break_sec = 15 * 60;
-    default_pomo.is_default_pomodoro = true;
-    presets[preset_count++] = default_pomo;
-
-    ESP_LOGI(TAG, "Timer store initialized with %d default preset(s)", preset_count);
+    rebuild_cache();
+    ESP_LOGI(TAG, "Timer store synced from app_state (%d presets)", s_count);
 }
 
 int timer_store_count(void)
 {
-    return preset_count;
+    return s_count;
 }
 
 timer_preset_t *timer_store_get(int index)
 {
-    if (index < 0 || index >= preset_count) return NULL;
-    return &presets[index];
+    if (index < 0 || index >= s_count) return NULL;
+    return &s_cache[index];
 }
 
 timer_preset_t *timer_store_get_by_id(int id)
 {
-    for (int i = 0; i < preset_count; i++) {
-        if (presets[i].id == id) return &presets[i];
+    for (int i = 0; i < s_count; i++) {
+        if (s_cache[i].id == id) return &s_cache[i];
     }
     return NULL;
 }
 
 int timer_store_add(const timer_preset_t *preset)
 {
-    if (preset_count >= TIMER_STORE_MAX_PRESETS) return -1;
-    timer_preset_t copy = *preset;
-    copy.id = next_id++;
-    presets[preset_count++] = copy;
-    ESP_LOGI(TAG, "Added preset '%s' (id=%d), total=%d", copy.name, copy.id, preset_count);
-    return copy.id;
+    app_state_t *state = app_state_get();
+    if (state->preset_count >= MAX_PRESETS) return -1;
+    preset_t *p = &state->presets[state->preset_count];
+    timer_to_preset(preset, p);
+    p->id = state->next_preset_id++;
+    state->preset_count++;
+    preset_to_timer(p, &s_cache[state->preset_count - 1]);
+    s_count = state->preset_count;
+    ESP_LOGI(TAG, "Added preset '%s' (id=%d), total=%d", p->name, p->id, s_count);
+    return p->id;
 }
 
 void timer_store_update(int id, const timer_preset_t *preset)
 {
-    for (int i = 0; i < preset_count; i++) {
-        if (presets[i].id == id) {
-            int saved_id = presets[i].id;
-            presets[i] = *preset;
-            presets[i].id = saved_id;
+    app_state_t *state = app_state_get();
+    for (int i = 0; i < state->preset_count; i++) {
+        if (state->presets[i].id == id) {
+            int saved_id = state->presets[i].id;
+            timer_to_preset(preset, &state->presets[i]);
+            state->presets[i].id = saved_id;
+            preset_to_timer(&state->presets[i], &s_cache[i]);
             ESP_LOGI(TAG, "Updated preset id=%d", id);
             return;
         }
@@ -72,13 +97,16 @@ void timer_store_update(int id, const timer_preset_t *preset)
 
 void timer_store_delete(int id)
 {
-    for (int i = 0; i < preset_count; i++) {
-        if (presets[i].id == id) {
-            for (int j = i; j < preset_count - 1; j++) {
-                presets[j] = presets[j + 1];
+    app_state_t *state = app_state_get();
+    for (int i = 0; i < state->preset_count; i++) {
+        if (state->presets[i].id == id) {
+            for (int j = i; j < state->preset_count - 1; j++) {
+                state->presets[j] = state->presets[j + 1];
+                s_cache[j] = s_cache[j + 1];
             }
-            preset_count--;
-            ESP_LOGI(TAG, "Deleted preset id=%d, remaining=%d", id, preset_count);
+            state->preset_count--;
+            s_count = state->preset_count;
+            ESP_LOGI(TAG, "Deleted preset id=%d, remaining=%d", id, s_count);
             return;
         }
     }
@@ -86,5 +114,5 @@ void timer_store_delete(int id)
 
 int timer_store_next_id(void)
 {
-    return next_id;
+    return app_state_get()->next_preset_id;
 }

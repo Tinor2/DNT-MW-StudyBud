@@ -23,7 +23,6 @@ idf_component_register(
         "networking/app_state.c"
         "display/utils/sleep_store.c"
         "display/utils/timer_store.c"
-        "display/app_state.c"
     INCLUDE_DIRS
         "."
         "display"
@@ -44,6 +43,7 @@ idf_component_register(
         driver
         esp_driver_gpio
         esp_driver_ledc
+        esp_driver_pcnt
         esp_driver_spi
         esp_lcd
         esp_timer

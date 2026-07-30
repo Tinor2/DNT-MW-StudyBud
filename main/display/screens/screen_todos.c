@@ -27,32 +27,16 @@ static lv_color_t get_priority_color(int priority)
     }
 }
 
-typedef struct {
-    const char *text;
-    int priority;
-    bool completed;
-} display_todo_t;
-
-static display_todo_t todo_items[] = {
-    {"Finish project report", 0, false},
-    {"Reply to emails",       1, false},
-    {"Buy groceries",         2, false},
-    {"Schedule dentist",      1, false},
-    {"Read 20 pages",         2, false},
-    {"Clean desk and also do a bunch more things blah blah blah",            0, false},
-};
-#define TODO_COUNT (sizeof(todo_items) / sizeof(todo_items[0]))
-
 static lv_obj_t *screen;
 static lv_obj_t *todo_container;
 static lv_obj_t *arrow_up_label;
 static lv_obj_t *arrow_down_label;
 static lv_obj_t *count_label;
 
-static lv_obj_t *task_rows[TODO_COUNT];
-static lv_obj_t *task_indicators[TODO_COUNT];
-static lv_obj_t *task_labels[TODO_COUNT];
-static lv_obj_t *task_dots[TODO_COUNT];
+static lv_obj_t *task_rows[MAX_TODOS];
+static lv_obj_t *task_indicators[MAX_TODOS];
+static lv_obj_t *task_labels[MAX_TODOS];
+static lv_obj_t *task_dots[MAX_TODOS];
 
 static lv_obj_t *focused_row;
 static lv_timer_t *radial_timer;
@@ -67,10 +51,23 @@ static void uncomplete_task(lv_obj_t *row);
 static void shuffle_timer_cb(lv_timer_t *timer);
 static void initial_scroll_cb(lv_timer_t *timer);
 
+static int todo_count(void)
+{
+    return app_state_get()->todo_count;
+}
+
+static todo_item_t *todo_get(int index)
+{
+    app_state_t *state = app_state_get();
+    if (index < 0 || index >= state->todo_count) return NULL;
+    return &state->todos[index];
+}
+
 static bool is_row_completed(lv_obj_t *row)
 {
-    for (int i = 0; i < (int)TODO_COUNT; i++)
-        if (task_rows[i] == row) return todo_items[i].completed;
+    int n = todo_count();
+    for (int i = 0; i < n; i++)
+        if (task_rows[i] == row) return todo_get(i)->done;
     return false;
 }
 
@@ -88,7 +85,9 @@ static void update_indicator(int index)
 {
     lv_obj_t *ind = task_indicators[index];
     if (!ind) return;
-    if (todo_items[index].completed) {
+    todo_item_t *item = todo_get(index);
+    if (!item) return;
+    if (item->done) {
         lv_obj_set_style_bg_color(ind, LV_COLOR_PRIMARY, 0);
         lv_obj_set_style_border_color(ind, LV_COLOR_PRIMARY, 0);
         lv_label_set_text(ind, LV_SYMBOL_OK);
@@ -105,14 +104,16 @@ static void update_task_count(void)
 {
     if (!count_label) return;
     int done = 0;
-    for (int i = 0; i < (int)TODO_COUNT; i++)
-        if (todo_items[i].completed) done++;
-    lv_label_set_text_fmt(count_label, "%d/%d done", done, (int)TODO_COUNT);
+    int n = todo_count();
+    for (int i = 0; i < n; i++)
+        if (todo_get(i)->done) done++;
+    lv_label_set_text_fmt(count_label, "%d/%d done", done, n);
 }
 
 static lv_obj_t *create_task_row(lv_obj_t *parent, int index)
 {
-    display_todo_t *item = &todo_items[index];
+    todo_item_t *item = todo_get(index);
+    if (!item) return NULL;
 
     lv_obj_t *row = lv_obj_create(parent);
     lv_obj_set_size(row, MAX_ROW_W, LV_SIZE_CONTENT);
@@ -164,10 +165,12 @@ static lv_obj_t *create_task_row(lv_obj_t *parent, int index)
 
 static void update_focus_styles(void)
 {
-    for (int i = 0; i < (int)TODO_COUNT; i++) {
+    int n = todo_count();
+    for (int i = 0; i < n; i++) {
         lv_obj_t *row = task_rows[i];
         lv_obj_t *label = task_labels[i];
-        if (!row || !label) continue;
+        todo_item_t *item = todo_get(i);
+        if (!row || !label || !item) continue;
 
         if (row == focused_row) {
             lv_obj_set_style_text_font(label, &lv_font_montserrat_20, 0);
@@ -175,15 +178,15 @@ static void update_focus_styles(void)
             lv_obj_set_style_text_opa(label, LV_OPA_COVER, 0);
             lv_obj_set_style_pad_ver(row, 12, 0);
             lv_obj_set_style_text_color(label,
-                todo_items[i].completed ? lv_color_make(0x80, 0x80, 0x80) : LV_COLOR_TEXT, 0);
+                item->done ? lv_color_make(0x80, 0x80, 0x80) : LV_COLOR_TEXT, 0);
         } else {
             lv_obj_set_style_text_font(label, &lv_font_montserrat_16, 0);
             lv_label_set_long_mode(label, LV_LABEL_LONG_DOT);
             lv_obj_set_style_pad_ver(row, 6, 0);
             lv_obj_set_style_text_opa(label,
-                todo_items[i].completed ? LV_OPA_60 : LV_OPA_80, 0);
+                item->done ? LV_OPA_60 : LV_OPA_80, 0);
             lv_obj_set_style_text_color(label,
-                todo_items[i].completed ? lv_color_make(0x80, 0x80, 0x80) : LV_COLOR_TEXT, 0);
+                item->done ? lv_color_make(0x80, 0x80, 0x80) : LV_COLOR_TEXT, 0);
         }
     }
 }
@@ -206,8 +209,9 @@ static void apply_radial_scroll(void)
 
     bool any_hidden_top = false;
     bool any_hidden_bottom = false;
+    int n = todo_count();
 
-    for (int i = 0; i < (int)TODO_COUNT; i++) {
+    for (int i = 0; i < n; i++) {
         lv_obj_t *row = task_rows[i];
         if (!row) continue;
 
@@ -277,21 +281,24 @@ static void update_row_positions(void)
     int completed_y = 0;
     int uncompleted_count = 0;
     int completed_count = 0;
+    int n = todo_count();
 
-    for (int i = 0; i < (int)TODO_COUNT; i++) {
-        if (todo_items[i].completed) completed_count++;
+    for (int i = 0; i < n; i++) {
+        todo_item_t *item = todo_get(i);
+        if (!item || item->done) completed_count++;
         else uncompleted_count++;
     }
 
     int uncompleted_start = 0;
     int completed_start = uncompleted_count * ROW_SPACING;
 
-    for (int i = 0; i < (int)TODO_COUNT; i++) {
+    for (int i = 0; i < n; i++) {
         lv_obj_t *row = task_rows[i];
-        if (!row) continue;
+        todo_item_t *item = todo_get(i);
+        if (!row || !item) continue;
 
         lv_coord_t x = (480 - MAX_ROW_W) / 2;
-        if (todo_items[i].completed) {
+        if (item->done) {
             lv_obj_set_pos(row, x, completed_start + completed_y * ROW_SPACING);
             completed_y++;
         } else {
@@ -324,50 +331,54 @@ static void shuffle_timer_cb(lv_timer_t *timer)
 static void complete_task(lv_obj_t *row)
 {
     int idx = -1;
-    for (int i = 0; i < (int)TODO_COUNT; i++)
+    int n = todo_count();
+    for (int i = 0; i < n; i++)
         if (task_rows[i] == row) { idx = i; break; }
-    if (idx < 0 || todo_items[idx].completed) return;
+    if (idx < 0) return;
 
-    todo_items[idx].completed = true;
+    todo_item_t *item = todo_get(idx);
+    if (!item || item->done) return;
+
+    item->done = true;
     update_indicator(idx);
     lv_obj_set_style_text_decor(task_labels[idx], LV_TEXT_DECOR_STRIKETHROUGH, 0);
     lv_obj_set_style_text_color(task_labels[idx], lv_color_make(0x80, 0x80, 0x80), 0);
     lv_obj_set_style_bg_opa(task_dots[idx], LV_OPA_40, 0);
 
-    {
-        app_state_broadcast_todo_toggled(idx, todo_items[idx].text, true);
-    }
+    app_state_broadcast_todo_toggled(idx, item->text, true);
 
     shuffle_data_t *data = malloc(sizeof(shuffle_data_t));
     data->row = row;
     lv_timer_t *t = lv_timer_create(shuffle_timer_cb, 500, data);
     t->repeat_count = 1;
-    ESP_LOGI(TAG, "Task %d completed: %s", idx, todo_items[idx].text);
+    ESP_LOGI(TAG, "Task %d completed: %s", idx, item->text);
 }
 
 static void uncomplete_task(lv_obj_t *row)
 {
     int idx = -1;
-    for (int i = 0; i < (int)TODO_COUNT; i++)
+    int n = todo_count();
+    for (int i = 0; i < n; i++)
         if (task_rows[i] == row) { idx = i; break; }
-    if (idx < 0 || !todo_items[idx].completed) return;
+    if (idx < 0) return;
 
-    todo_items[idx].completed = false;
+    todo_item_t *item = todo_get(idx);
+    if (!item || !item->done) return;
+
+    item->done = false;
     update_indicator(idx);
     lv_obj_set_style_text_decor(task_labels[idx], LV_TEXT_DECOR_NONE, 0);
     lv_obj_set_style_text_color(task_labels[idx], LV_COLOR_TEXT, 0);
     lv_obj_set_style_bg_opa(task_dots[idx], LV_OPA_COVER, 0);
 
-    {
-        app_state_broadcast_todo_toggled(idx, todo_items[idx].text, false);
-    }
+    app_state_broadcast_todo_toggled(idx, item->text, false);
 
     update_row_positions();
     update_focus_styles();
     focused_row = row;
     lv_obj_scroll_to_view(focused_row, LV_ANIM_ON);
     update_arrow_visibility();
-    ESP_LOGI(TAG, "Task %d un-completed: %s", idx, todo_items[idx].text);
+    ESP_LOGI(TAG, "Task %d un-completed: %s", idx, item->text);
 }
 
 lv_obj_t *screen_todos_create(void)
@@ -404,17 +415,20 @@ lv_obj_t *screen_todos_create(void)
     lv_obj_add_flag(arrow_down_label, LV_OBJ_FLAG_HIDDEN);
 
     count_label = lv_label_create(screen);
-    lv_label_set_text(count_label, "0/6 done");
+    lv_label_set_text(count_label, "0/0 done");
     lv_obj_set_style_text_font(count_label, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(count_label, LV_COLOR_TEXT_MUTED, 0);
     lv_obj_align(count_label, LV_ALIGN_BOTTOM_MID, 0, -60);
 
-    for (int i = 0; i < (int)TODO_COUNT; i++) {
+    int n = todo_count();
+    for (int i = 0; i < n; i++) {
         create_task_row(todo_container, i);
         lv_obj_set_pos(task_rows[i], (480 - MAX_ROW_W) / 2, i * ROW_SPACING);
     }
 
-    focused_row = task_rows[0];
+    if (n > 0) {
+        focused_row = task_rows[0];
+    }
     update_focus_styles();
     update_task_count();
     update_arrow_visibility();
@@ -425,23 +439,24 @@ lv_obj_t *screen_todos_create(void)
     lv_timer_t *init_timer = lv_timer_create(initial_scroll_cb, 50, NULL);
     init_timer->repeat_count = 1;
 
-    ESP_LOGI(TAG, "Todos screen created with %d items", (int)TODO_COUNT);
+    ESP_LOGI(TAG, "Todos screen created with %d items", n);
     return screen;
 }
 
 void screen_todos_encoder_event(lv_indev_data_t *data)
 {
     if (!todo_container) return;
+    int n = todo_count();
 
     if (data->enc_diff != 0) {
         int cur_idx = -1;
-        for (int i = 0; i < (int)TODO_COUNT; i++)
+        for (int i = 0; i < n; i++)
             if (task_rows[i] == focused_row) { cur_idx = i; break; }
         if (cur_idx < 0) return;
 
         int new_idx = cur_idx + data->enc_diff;
-        if (new_idx < 0) new_idx = (int)TODO_COUNT - 1;
-        if (new_idx >= (int)TODO_COUNT) new_idx = 0;
+        if (new_idx < 0) new_idx = n - 1;
+        if (new_idx >= n) new_idx = 0;
 
         focused_row = task_rows[new_idx];
         update_focus_styles();
