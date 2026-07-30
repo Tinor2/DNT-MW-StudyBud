@@ -435,6 +435,8 @@ void screen_timer_presets_encoder_event(lv_indev_data_t *data)
                     ui_manager_switch_screen(SCREEN_TIMER);
                 }
             } else if (action_idx == ACTION_EDIT) {
+                timer_preset_t *p = timer_store_get(focused_index);
+                if (p) app_state_get()->active_preset_id = p->id;
                 ui_manager_switch_screen(SCREEN_TIMER_EDIT);
             }
         }

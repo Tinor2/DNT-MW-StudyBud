@@ -409,7 +409,8 @@ void screen_timer_edit_encoder_event(lv_indev_data_t *data)
             if (editing_existing) {
                 timer_store_update(edit_preset_id, &preset);
             } else {
-                timer_store_add(&preset);
+                int new_id = timer_store_add(&preset);
+                if (new_id >= 0) edit_preset_id = new_id;
             }
 
             ui_manager_switch_screen(SCREEN_TIMER_PRESETS);
@@ -543,7 +544,7 @@ lv_obj_t *screen_timer_edit_create(void)
     lv_obj_set_style_text_color(lbl_save, LV_COLOR_BG_CARD, 0);
     lv_obj_center(lbl_save);
 
-    /* --- Load editing state from timer_store --- */
+    /* --- Load editing state from app_state.active_preset_id --- */
     editing_existing = false;
     edit_preset_id = -1;
     edit_type = TIMER_TYPE_STANDARD;
@@ -551,8 +552,9 @@ lv_obj_t *screen_timer_edit_create(void)
     edit_mins = 25;
     edit_secs = 0;
 
-    if (timer_store_count() > 0) {
-        timer_preset_t *p = timer_store_get(0);
+    int target_id = app_state_get()->active_preset_id;
+    if (target_id >= 0) {
+        timer_preset_t *p = timer_store_get_by_id(target_id);
         if (p) {
             editing_existing = true;
             edit_preset_id = p->id;
