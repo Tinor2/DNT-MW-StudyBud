@@ -11,6 +11,7 @@
 
 #include "../main/display/studybud_theme.h"
 #include "../main/display/ui_manager.h"
+#include "../main/display/app_state.h"
 
 static const char *TAG = "Simulator";
 
@@ -35,6 +36,7 @@ int main(int argc, char *argv[])
     strftime(time_buf, sizeof(time_buf), "%H:%M", tm_info);
     ESP_LOGI(TAG, "Current time: %s", time_buf);
 
+    app_state_init(NULL);
     ui_manager_init();
 
     ESP_LOGI(TAG, "Starting main loop");

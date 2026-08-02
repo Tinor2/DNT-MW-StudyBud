@@ -1,12 +1,14 @@
 #include "wifi_manager.h"
 
 #include <string.h>
+#include <time.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 #include "esp_wifi.h"
 #include "esp_log.h"
 #include "esp_event.h"
 #include "esp_netif.h"
+#include "esp_sntp.h"
 #include "nvs_flash.h"
 
 static const char *TAG = "wifi_mgr";
@@ -28,7 +30,9 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
         esp_wifi_connect();
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
+        wifi_event_sta_disconnected_t *disconn = (wifi_event_sta_disconnected_t *)event_data;
         s_connected = false;
+        ESP_LOGW(TAG, "Disconnected, reason=%d", disconn->reason);
         if (s_retry_count < MAX_RETRY) {
             esp_wifi_connect();
             s_retry_count++;
@@ -88,6 +92,16 @@ esp_err_t wifi_manager_init(const char *ssid, const char *password)
 
     if (bits & WIFI_CONNECTED_BIT) {
         ESP_LOGI(TAG, "WiFi connected");
+
+        setenv("TZ", CONFIG_STUDYBUD_TIMEZONE, 1);
+        tzset();
+
+        esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
+        esp_sntp_setservername(0, "pool.ntp.org");
+        esp_sntp_setservername(1, "time.google.com");
+        esp_sntp_init();
+        ESP_LOGI(TAG, "SNTP started (TZ='%s')", CONFIG_STUDYBUD_TIMEZONE);
+
         return ESP_OK;
     } else {
         ESP_LOGE(TAG, "WiFi connection failed");

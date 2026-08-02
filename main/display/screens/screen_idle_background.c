@@ -1,6 +1,6 @@
 #include "screen_idle_background.h"
 #include "ui_manager.h"
-#include "studybud_theme.h"
+#include "color_palette.h"
 #include "idle_bg_tree.h"
 #include "esp_log.h"
 #include <math.h>
@@ -357,7 +357,7 @@ static void exit_view_mode(void)
 lv_obj_t *screen_idle_background_create(void)
 {
     screen = lv_obj_create(NULL);
-    lv_obj_set_style_bg_color(screen, LV_COLOR_BG, 0);
+    lv_obj_set_style_bg_color(screen, pastel_color(theme_accent(SCREEN_BACKGROUNDS)), 0);
     lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
 
     /* Title */

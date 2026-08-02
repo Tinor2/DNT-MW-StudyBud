@@ -1,7 +1,8 @@
 #include "screen_todos.h"
 #include "ui_manager.h"
-#include "studybud_theme.h"
+#include "color_palette.h"
 #include "../app_state.h"
+#include "../utils/persistence.h"
 #include "esp_log.h"
 #include <stdlib.h>
 #include <string.h>
@@ -88,10 +89,10 @@ static void update_indicator(int index)
     todo_item_t *item = todo_get(index);
     if (!item) return;
     if (item->done) {
-        lv_obj_set_style_bg_color(ind, LV_COLOR_PRIMARY, 0);
-        lv_obj_set_style_border_color(ind, LV_COLOR_PRIMARY, 0);
+        lv_obj_set_style_bg_color(ind, theme_accent(SCREEN_TODOS), 0);
+        lv_obj_set_style_border_color(ind, theme_accent(SCREEN_TODOS), 0);
         lv_label_set_text(ind, LV_SYMBOL_OK);
-        lv_obj_set_style_text_color(ind, LV_COLOR_BG_CARD, 0);
+        lv_obj_set_style_text_color(ind, contrast_text_color(theme_accent(SCREEN_TODOS)), 0);
         lv_obj_set_style_text_font(ind, &lv_font_montserrat_14, 0);
     } else {
         lv_obj_set_style_bg_color(ind, LV_COLOR_BG_CARD, 0);
@@ -159,6 +160,13 @@ static lv_obj_t *create_task_row(lv_obj_t *parent, int index)
     lv_obj_set_style_border_width(dot, 0, 0);
     lv_obj_set_style_pad_all(dot, 0, 0);
     task_dots[index] = dot;
+
+    if (item->done) {
+        update_indicator(index);
+        lv_obj_set_style_text_decor(label, LV_TEXT_DECOR_STRIKETHROUGH, 0);
+        lv_obj_set_style_text_color(label, lv_color_make(0x80, 0x80, 0x80), 0);
+        lv_obj_set_style_bg_opa(dot, LV_OPA_40, 0);
+    }
 
     return row;
 }
@@ -340,12 +348,14 @@ static void complete_task(lv_obj_t *row)
     if (!item || item->done) return;
 
     item->done = true;
+    persistence_mark_dirty();
     update_indicator(idx);
     lv_obj_set_style_text_decor(task_labels[idx], LV_TEXT_DECOR_STRIKETHROUGH, 0);
     lv_obj_set_style_text_color(task_labels[idx], lv_color_make(0x80, 0x80, 0x80), 0);
     lv_obj_set_style_bg_opa(task_dots[idx], LV_OPA_40, 0);
 
-    app_state_broadcast_todo_toggled(idx, item->text, true);
+    app_state_broadcast_todo_toggled(idx, item->id, item->text, true);
+    app_state_broadcast_todo_sync();
 
     shuffle_data_t *data = malloc(sizeof(shuffle_data_t));
     data->row = row;
@@ -366,12 +376,14 @@ static void uncomplete_task(lv_obj_t *row)
     if (!item || !item->done) return;
 
     item->done = false;
+    persistence_mark_dirty();
     update_indicator(idx);
     lv_obj_set_style_text_decor(task_labels[idx], LV_TEXT_DECOR_NONE, 0);
     lv_obj_set_style_text_color(task_labels[idx], LV_COLOR_TEXT, 0);
     lv_obj_set_style_bg_opa(task_dots[idx], LV_OPA_COVER, 0);
 
-    app_state_broadcast_todo_toggled(idx, item->text, false);
+    app_state_broadcast_todo_toggled(idx, item->id, item->text, false);
+    app_state_broadcast_todo_sync();
 
     update_row_positions();
     update_focus_styles();
@@ -384,7 +396,7 @@ static void uncomplete_task(lv_obj_t *row)
 lv_obj_t *screen_todos_create(void)
 {
     screen = lv_obj_create(NULL);
-    lv_obj_set_style_bg_color(screen, LV_COLOR_BG, 0);
+    lv_obj_set_style_bg_color(screen, pastel_color(theme_accent(SCREEN_TODOS)), 0);
     lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
 
     todo_container = lv_obj_create(screen);
@@ -443,20 +455,56 @@ lv_obj_t *screen_todos_create(void)
     return screen;
 }
 
+void screen_todos_refresh(void)
+{
+    if (!screen || !todo_container) return;
+
+    for (int i = 0; i < MAX_TODOS; i++) {
+        if (task_rows[i]) lv_obj_del(task_rows[i]);
+        task_rows[i] = NULL;
+        task_labels[i] = NULL;
+        task_indicators[i] = NULL;
+        task_dots[i] = NULL;
+    }
+
+    int n = todo_count();
+    for (int i = 0; i < n; i++) {
+        create_task_row(todo_container, i);
+        lv_obj_set_pos(task_rows[i], (480 - MAX_ROW_W) / 2, i * ROW_SPACING);
+    }
+
+    focused_row = (n > 0) ? task_rows[0] : NULL;
+
+    update_focus_styles();
+    update_task_count();
+    update_arrow_visibility();
+
+    lv_obj_scroll_to_y(todo_container, 0, LV_ANIM_OFF);
+    if (focused_row) {
+        lv_obj_update_layout(todo_container);
+        lv_obj_scroll_to_view(focused_row, LV_ANIM_OFF);
+    }
+    apply_radial_scroll();
+
+    ESP_LOGI(TAG, "Todos screen refreshed with %d items", n);
+}
+
 void screen_todos_encoder_event(lv_indev_data_t *data)
 {
     if (!todo_container) return;
     int n = todo_count();
+    if (n == 0 || !focused_row) return;
 
     if (data->enc_diff != 0) {
         int cur_idx = -1;
         for (int i = 0; i < n; i++)
-            if (task_rows[i] == focused_row) { cur_idx = i; break; }
+            if (task_rows[i] && task_rows[i] == focused_row) { cur_idx = i; break; }
         if (cur_idx < 0) return;
 
         int new_idx = cur_idx + data->enc_diff;
         if (new_idx < 0) new_idx = n - 1;
         if (new_idx >= n) new_idx = 0;
+        if (!task_rows[new_idx]) return;
 
         focused_row = task_rows[new_idx];
         update_focus_styles();

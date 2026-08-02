@@ -1,6 +1,8 @@
 #include "screen_home.h"
 #include "ui_manager.h"
-#include "studybud_theme.h"
+#include "color_palette.h"
+#include "../app_state.h"
+#include "../utils/session_store.h"
 #include "esp_log.h"
 #include <time.h>
 
@@ -29,10 +31,20 @@ static void update_time_cb(lv_timer_t *timer)
     lv_label_set_text(date_label, date_buf);
 }
 
+void screen_home_refresh(void)
+{
+    app_state_t *state = app_state_get();
+
+    lv_label_set_text_fmt(water_label, LV_SYMBOL_BELL " %d/%d",
+                          state->water.glasses, state->water.goal);
+    lv_label_set_text_fmt(session_label, LV_SYMBOL_HOME " %d sessions",
+                          session_store_get_breath_count());
+}
+
 lv_obj_t *screen_home_create(void)
 {
     screen = lv_obj_create(NULL);
-    lv_obj_set_style_bg_color(screen, LV_COLOR_BG, 0);
+    lv_obj_set_style_bg_color(screen, pastel_color(theme_accent(SCREEN_HOME)), 0);
 
     time_label = lv_label_create(screen);
     lv_label_set_text(time_label, "00:00");
@@ -53,7 +65,7 @@ lv_obj_t *screen_home_create(void)
     lv_obj_align(session_label, LV_ALIGN_BOTTOM_MID, 0, -40);
 
     water_label = lv_label_create(screen);
-    lv_label_set_text_fmt(water_label, LV_SYMBOL_BELL " %d/8", 0);
+    lv_label_set_text_fmt(water_label, LV_SYMBOL_BELL " %d/%d", 0, 8);
     lv_obj_set_style_text_font(water_label, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(water_label, LV_COLOR_INFO, 0);
     lv_obj_align(water_label, LV_ALIGN_BOTTOM_MID, 0, -15);
@@ -61,6 +73,9 @@ lv_obj_t *screen_home_create(void)
     /* Update time immediately, then every second */
     update_time_cb(NULL);
     lv_timer_create(update_time_cb, 1000, NULL);
+
+    /* Reflect current state immediately */
+    screen_home_refresh();
 
     ESP_LOGI(TAG, "Home screen created");
     return screen;

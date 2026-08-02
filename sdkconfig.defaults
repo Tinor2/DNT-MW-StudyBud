@@ -36,6 +36,9 @@ CONFIG_LV_FONT_MONTSERRAT_48=y
 # VSYNC tear avoidance
 CONFIG_EXAMPLE_AVOID_TEAR_EFFECT_WITH_SEM=y
 
+# LVGL runs on the main task; needs headroom for drawing + network calls
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+
 # WiFi
 CONFIG_ESP_WIFI=y
 CONFIG_ESP_WIFI_STATIC_RX_BUFFER_NUM=10
@@ -51,5 +54,12 @@ CONFIG_HTTPD_MAX_URI_LEN=512
 # NVS
 CONFIG_NVS=y
 
+# Time zone used for localtime() after SNTP sync (POSIX TZ string).
+# Change to your region, e.g. "UTC0" or "EST5EDT,M3.2.0,M11.1.0".
+CONFIG_STUDYBUD_TIMEZONE="AEST-10AEDT,M10.1.0,M4.1.0/3"
+
 # mDNS
 CONFIG_MDNS=y
+
+# FATFS (SD card persistence)
+CONFIG_FATFS_LFN_HEAP=y

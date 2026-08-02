@@ -9,8 +9,13 @@
 #include "LCD_Driver/ST7701S.h"
 #include "display/lvgl_driver/LVGL_Driver.h"
 #include "display/ui_manager.h"
+#include "display/utils/persistence.h"
+#include "display/utils/sleep_store.h"
+#include "display/utils/session_store.h"
+#include "display/utils/points_store.h"
 #include "networking/wifi_manager.h"
 #include "networking/web_server.h"
+#include "networking/app_state.h"
 
 static const char *TAG = "StudyBud";
 #define WIFI_SSID      "Optus_0253C6"
@@ -21,6 +26,8 @@ static const char *TAG = "StudyBud";
 extern "C" void app_main(void)
 {
     ESP_LOGI(TAG, "Starting StudyBud");
+
+    app_state_init(NULL);
 
     ESP_LOGI(TAG, "Initializing WiFi...");
     esp_err_t wifi_ret = wifi_manager_init(WIFI_SSID, WIFI_PASSWORD);
@@ -43,6 +50,16 @@ extern "C" void app_main(void)
 
     ESP_LOGI(TAG, "Initializing LVGL...");
     LVGL_Driver_init();
+
+    ESP_LOGI(TAG, "Initializing stores...");
+    sleep_store_init();
+    sleep_store_seed_demo();
+    session_store_init();
+    points_store_init();
+
+    ESP_LOGI(TAG, "Initializing SD card persistence...");
+    persistence_init();
+    Set_Backlight((uint8_t)app_state_get()->settings.brightness);
 
     ESP_LOGI(TAG, "Initializing UI Manager...");
     ui_manager_init();

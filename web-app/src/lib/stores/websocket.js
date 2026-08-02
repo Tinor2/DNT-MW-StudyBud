@@ -8,6 +8,7 @@ function createWebSocketStore() {
     status: 'disconnected',
     messages: [],
     lastMessage: null,
+    seq: 0,
   });
 
   let ws = null;
@@ -45,12 +46,14 @@ function createWebSocketStore() {
         const data = JSON.parse(event.data);
         update(s => ({
           ...s,
+          seq: s.seq + 1,
           messages: [...s.messages.slice(-199), { time: Date.now(), data, dir: 'in' }],
           lastMessage: data,
         }));
       } catch {
         update(s => ({
           ...s,
+          seq: s.seq + 1,
           messages: [...s.messages.slice(-199), { time: Date.now(), raw: event.data, dir: 'in' }],
         }));
       }
@@ -84,6 +87,7 @@ function createWebSocketStore() {
     ws.send(msg);
     update(s => ({
       ...s,
+      seq: s.seq + 1,
       messages: [...s.messages.slice(-199), { time: Date.now(), data: JSON.parse(msg), dir: 'out' }],
     }));
     return true;
@@ -100,11 +104,11 @@ function createWebSocketStore() {
       ws.close();
       ws = null;
     }
-    set({ status: 'disconnected', messages: [], lastMessage: null });
+    set({ status: 'disconnected', messages: [], lastMessage: null, seq: 0 });
   }
 
   function clearLog() {
-    update(s => ({ ...s, messages: [] }));
+    update(s => ({ ...s, messages: [], seq: 0 }));
   }
 
   return { subscribe, connect, send, disconnect, clearLog };

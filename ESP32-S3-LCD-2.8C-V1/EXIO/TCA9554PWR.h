@@ -20,6 +20,10 @@
 #define TCA9554_POLARITY_REG        0x02
 #define TCA9554_CONFIG_REG          0x03
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 uint8_t Read_REG(uint8_t REG);
 void Write_REG(uint8_t REG, uint8_t Data);
 void Mode_EXIO(uint8_t Pin, uint8_t State);
@@ -31,3 +35,7 @@ void Set_EXIOS(uint8_t PinState);
 void Set_Toggle(uint8_t Pin);
 void TCA9554PWR_Init(uint8_t PinState);
 esp_err_t EXIO_Init(void);
+
+#ifdef __cplusplus
+}
+#endif

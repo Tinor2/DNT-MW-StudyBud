@@ -49,15 +49,23 @@ add_library(studybud_screens STATIC
     ${SCREEN_DIR}/screens/screen_timer_presets.c
     ${SCREEN_DIR}/screens/screen_timer_edit.c
     ${SCREEN_DIR}/screens/screen_timer.c
+    ${SCREEN_DIR}/screens/screen_tamagotchi.c
+    ${SCREEN_DIR}/screens/screen_water.c
+    ${SCREEN_DIR}/screens/screen_settings.c
     ${SCREEN_DIR}/../assets/idle_bg_tree.c
     ${SCREEN_DIR}/../assets/app_logo.c
     ${SCREEN_DIR}/../assets/todo_logo.c
     ${SCREEN_DIR}/../assets/timer_logo.c
+    ${SCREEN_DIR}/../assets/breathing_logo.c
+    ${SCREEN_DIR}/../assets/tamagotchi_logo.c
+    ${SCREEN_DIR}/../assets/sleeping_logo.c
     ${SCREEN_DIR}/utils/session_store.c
     ${SCREEN_DIR}/utils/sleep_store.c
+    ${SCREEN_DIR}/utils/points_store.c
     ${SCREEN_DIR}/utils/timer_store.c
     ${SCREEN_DIR}/app_state.c
     ${SCREEN_DIR}/ui_manager.c
+    ${CMAKE_SOURCE_DIR}/persistence_sim.c
 )
 
 target_include_directories(studybud_screens PUBLIC
@@ -80,6 +88,7 @@ target_compile_definitions(studybud_screens PRIVATE
 # SDL2 display + encoder driver
 add_library(sdl_driver STATIC
     ${CMAKE_SOURCE_DIR}/SDL_Driver.c
+    ${CMAKE_SOURCE_DIR}/ST7701S_stub.c
 )
 
 target_include_directories(sdl_driver PUBLIC

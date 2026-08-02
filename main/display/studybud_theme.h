@@ -2,6 +2,7 @@
 #define STUDYBUD_THEME_H
 
 #include "lvgl.h"
+#include "app_state.h"
 
 /* === PRIMARY — Forest Green === */
 #define LV_COLOR_PRIMARY        lv_color_hex(0x3B7D4B)
@@ -20,7 +21,9 @@
 #define LV_COLOR_BORDER         lv_color_hex(0xBFC8B9)
 
 /* === TEXT === */
-#define LV_COLOR_TEXT           lv_color_hex(0x2D3147)
+#define LV_COLOR_TEXT            lv_color_hex(0x2A3B2E)
+#define LV_COLOR_TEXT_ON_LIGHT   lv_color_hex(0x2A3B2E) /* new default text: deep ink-green */
+#define LV_COLOR_TEXT_ON_DARK    lv_color_hex(0xFFFFFF) /* white, used on dark/colored bgs   */
 #define LV_COLOR_TEXT_SECONDARY lv_color_hex(0x6B7094)
 #define LV_COLOR_TEXT_MUTED     lv_color_hex(0x9B9FBA)
 
@@ -49,5 +52,8 @@
 // extern const lv_font_t font_20_bold;
 // extern const lv_font_t font_28;
 // extern const lv_font_t font_36;
+
+/* === SCREEN ACCENT COLORS (dynamically set by screen_menu) === */
+/* Colour helper functions live in color_palette.h */
 
 #endif /* STUDYBUD_THEME_H */

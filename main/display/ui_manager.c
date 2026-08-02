@@ -8,8 +8,12 @@
 #include "screens/screen_timer_presets.h"
 #include "screens/screen_timer_edit.h"
 #include "screens/screen_timer.h"
+#include "screens/screen_tamagotchi.h"
+#include "screens/screen_water.h"
+#include "screens/screen_settings.h"
 #include "app_state.h"
 #include "studybud_theme.h"
+#include "color_palette.h"
 #include "esp_log.h"
 #include <math.h>
 
@@ -21,7 +25,6 @@ static lv_obj_t *screens[SCREEN_COUNT] = {0};
 static void (*screen_event_handlers[SCREEN_COUNT])(lv_indev_data_t *) = {0};
 
 #define LONG_PRESS_MS 800
-#define DEAD_ZONE_MS  (LONG_PRESS_MS / 5)
 #define GLOW_MAX_OPA  100
 #define DISPLAY_SIZE  480
 #define DISPLAY_CX    240
@@ -37,6 +40,28 @@ static lv_obj_t *glow_overlay = NULL;
 static lv_timer_t *glow_timer = NULL;
 
 static lv_obj_t *nav_bubble = NULL;
+
+/* Re-tint the glow ring and nav bubble with the accent of the current app */
+static void update_glow_color(void)
+{
+    if (!glow_overlay) return;
+
+    lv_color_t c = theme_accent(current_screen);
+    lv_img_dsc_t *img = lv_canvas_get_img(glow_overlay);
+    if (!img || !img->data) return;
+
+    uint8_t px_size = lv_img_cf_get_px_size(LV_IMG_CF_TRUE_COLOR_ALPHA) >> 3;
+
+    for (lv_coord_t y = 0; y < DISPLAY_SIZE; y++) {
+        for (lv_coord_t x = 0; x < DISPLAY_SIZE; x++) {
+            uint32_t px = (uint32_t)(y * DISPLAY_SIZE + x) * px_size;
+            if (img->data[px + px_size - 1] == 0) continue;
+            lv_canvas_set_px_color(glow_overlay, x, y, c);
+        }
+    }
+
+    if (nav_bubble) lv_obj_set_style_bg_color(nav_bubble, c, 0);
+}
 
 static void glow_timer_cb(lv_timer_t *timer)
 {
@@ -139,6 +164,13 @@ static void create_nav_bubble(void)
     lv_obj_set_style_opa(nav_bubble, LV_OPA_TRANSP, 0);
 }
 
+static void timer_background_cb(lv_timer_t *timer)
+{
+    (void)timer;
+    if (current_screen == SCREEN_TIMER) return;
+    screen_timer_background_tick();
+}
+
 void ui_manager_init(void)
 {
     ESP_LOGI(TAG, "Initializing UI Manager");
@@ -160,10 +192,9 @@ void ui_manager_init(void)
     /* Create navigation bubble (on top layer, above all screens) */
     create_nav_bubble();
 
-    /* Create all screens */
-    app_state_init(NULL);
-    screens[SCREEN_HOME] = screen_home_create();
+    /* Create all screens (menu first to populate accent colors) */
     screens[SCREEN_MENU] = screen_menu_create();
+    screens[SCREEN_HOME] = screen_home_create();
     screens[SCREEN_TODOS] = screen_todos_create();
     screens[SCREEN_BREATHING] = screen_breathing_create();
     screens[SCREEN_BACKGROUNDS] = screen_idle_background_create();
@@ -171,6 +202,9 @@ void ui_manager_init(void)
     screens[SCREEN_TIMER_PRESETS] = screen_timer_presets_create();
     screens[SCREEN_TIMER_EDIT] = screen_timer_edit_create();
     screens[SCREEN_TIMER] = screen_timer_create();
+    screens[SCREEN_TAMAGOTCHI] = screen_tamagotchi_create();
+    screens[SCREEN_WATER] = screen_water_create();
+    screens[SCREEN_SETTINGS] = screen_settings_create();
 
     /* Register event handlers */
     screen_event_handlers[SCREEN_HOME] = screen_home_encoder_event;
@@ -182,19 +216,57 @@ void ui_manager_init(void)
     screen_event_handlers[SCREEN_TIMER_PRESETS] = screen_timer_presets_encoder_event;
     screen_event_handlers[SCREEN_TIMER_EDIT] = screen_timer_edit_encoder_event;
     screen_event_handlers[SCREEN_TIMER] = screen_timer_encoder_event;
+    screen_event_handlers[SCREEN_TAMAGOTCHI] = screen_tamagotchi_encoder_event;
+    screen_event_handlers[SCREEN_WATER] = screen_water_encoder_event;
+    screen_event_handlers[SCREEN_SETTINGS] = screen_settings_encoder_event;
 
     /* Load home screen as default */
     lv_scr_load(screens[SCREEN_HOME]);
     current_screen = SCREEN_HOME;
     app_state_broadcast_screen_change(SCREEN_HOME);
 
+    /* Persistent background timer so a running timer keeps counting (and
+       broadcasting) even when the user navigates away from the timer screen */
+    lv_timer_create(timer_background_cb, 1000, NULL);
+
     ESP_LOGI(TAG, "UI Manager initialized, showing Home screen");
 }
 
 void ui_manager_switch_screen(screen_id_t screen)
 {
-    if (screen >= SCREEN_COUNT || !screens[screen]) {
+    if (screen >= SCREEN_COUNT) {
         ESP_LOGW(TAG, "Invalid screen ID: %d", screen);
+        return;
+    }
+
+    switch (screen) {
+    case SCREEN_TIMER:
+        screens[SCREEN_TIMER] = screen_timer_create();
+        break;
+    case SCREEN_TIMER_PRESETS:
+        screens[SCREEN_TIMER_PRESETS] = screen_timer_presets_create();
+        break;
+    case SCREEN_TIMER_EDIT:
+        screens[SCREEN_TIMER_EDIT] = screen_timer_edit_create();
+        break;
+    case SCREEN_TODOS:
+        screen_todos_refresh();
+        break;
+    case SCREEN_HOME:
+        screen_home_refresh();
+        break;
+    case SCREEN_WATER:
+        screen_water_refresh();
+        break;
+    case SCREEN_SETTINGS:
+        screen_settings_refresh();
+        break;
+    default:
+        break;
+    }
+
+    if (!screens[screen]) {
+        ESP_LOGW(TAG, "Screen %d not available", screen);
         return;
     }
 
@@ -223,6 +295,7 @@ void ui_manager_encoder_event(lv_indev_data_t *data)
         app_state_broadcast_encoder_event("none", "press");
 
         if (current_screen != SCREEN_MENU) {
+            update_glow_color();
             if (glow_timer) lv_timer_resume(glow_timer);
         }
         return;
@@ -257,9 +330,8 @@ void ui_manager_encoder_event(lv_indev_data_t *data)
 
         app_state_broadcast_encoder_event("none", "short_press");
 
-        /* Ignore presses held longer than dead zone but shorter than long press
-         * — prevents accidental activation from holds that were slightly too long */
-        if (held_ms > DEAD_ZONE_MS) return;
+        /* If held for the full long-press duration, treat as cancelled hold */
+        if (held_ms >= LONG_PRESS_MS) return;
 
         /* Short press: forward to screen handler */
         if (current_screen == SCREEN_MENU) {

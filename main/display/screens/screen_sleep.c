@@ -1,7 +1,9 @@
 #include "screen_sleep.h"
 #include "ui_manager.h"
 #include "studybud_theme.h"
+#include "color_palette.h"
 #include "../utils/sleep_store.h"
+#include "../app_state.h"
 #include "lvgl.h"
 #include "esp_log.h"
 #include <stdint.h>
@@ -17,6 +19,10 @@ static const char *TAG = "Screen_Sleep";
 #define TRANSITION_TIME  350
 #define FOCUS_ANIM_MS    300
 
+#define ACCENT       theme_accent(SCREEN_SLEEP)
+#define ACCENT_LIGHT theme_accent_light(SCREEN_SLEEP)
+#define ACCENT_DARK  theme_accent_dark(SCREEN_SLEEP)
+
 typedef enum {
     SLEEP_STATE_INTRO,
     SLEEP_STATE_START,
@@ -26,7 +32,7 @@ typedef enum {
 } sleep_state_t;
 
 static sleep_state_t current_state = SLEEP_STATE_INTRO;
-static lv_obj_t *screen;
+static lv_obj_t *screen = NULL;
 
 static int focus_index = 0;
 static int prev_focus_index = -1;
@@ -35,39 +41,43 @@ static bool confirm_mode = false;
 static lv_timer_t *clock_timer = NULL;
 
 /* --- State: INTRO --- */
-static lv_obj_t *lbl_title;
-static lv_obj_t *btn_start_session;
-static lv_obj_t *btn_weekly_review;
+static lv_obj_t *lbl_title = NULL;
+static lv_obj_t *btn_start_session = NULL;
+static lv_obj_t *btn_weekly_review = NULL;
 
 /* --- State: START --- */
-static lv_obj_t *lbl_greeting;
-static lv_obj_t *clock_frame;
-static lv_obj_t *lbl_clock;
-static lv_obj_t *btn_start_now;
-static lv_obj_t *btn_back;
+static lv_obj_t *lbl_greeting = NULL;
+static lv_obj_t *clock_frame = NULL;
+static lv_obj_t *lbl_clock = NULL;
+static lv_obj_t *btn_start_now = NULL;
+static lv_obj_t *btn_back = NULL;
 
 /* --- State: ACTIVE --- */
-static lv_obj_t *lbl_tracking;
-static lv_obj_t *btn_awake;
-static lv_obj_t *lbl_awake_text;
-static lv_obj_t *lbl_awake_hint;
-static lv_obj_t *badge_pulse;
-static lv_obj_t *lbl_goodnight;
-static lv_obj_t *lbl_active_clock;
-static lv_obj_t *btn_nevermind;
+static lv_obj_t *lbl_tracking = NULL;
+static lv_obj_t *btn_awake = NULL;
+static lv_obj_t *lbl_awake_text = NULL;
+static lv_obj_t *lbl_awake_hint = NULL;
+static lv_obj_t *badge_pulse = NULL;
+static lv_obj_t *lbl_goodnight = NULL;
+static lv_obj_t *lbl_active_clock = NULL;
+static lv_obj_t *btn_nevermind = NULL;
 
 /* --- State: SUMMARY --- */
-static lv_obj_t *lbl_result;
-static lv_obj_t *lbl_sub;
-static lv_obj_t *lbl_hint;
+static lv_obj_t *lbl_result = NULL;
+static lv_obj_t *lbl_sub = NULL;
+static lv_obj_t *lbl_hint = NULL;
 
 /* --- State: WEEKLY --- */
-static lv_obj_t *lbl_weekly_header;
-static lv_obj_t *lbl_weekly_avg;
-static lv_obj_t *lbl_weekly_msg;
-static lv_obj_t *chart_weekly;
-static lv_chart_series_t *chart_series;
-static lv_obj_t *btn_weekly_back;
+static lv_obj_t *lbl_weekly_header = NULL;
+static lv_obj_t *lbl_weekly_avg = NULL;
+static lv_obj_t *lbl_weekly_msg = NULL;
+static lv_obj_t *chart_weekly = NULL;
+static lv_chart_series_t *chart_series = NULL;
+static lv_obj_t *btn_weekly_back = NULL;
+static lv_obj_t *day_labels[7] = {NULL};
+
+/* Static chart buffer to avoid stack corruption in LVGL chart */
+static lv_coord_t chart_days[7] = {0};
 
 static void update_focus_styles(void);
 static void animate_style(lv_obj_t *obj, lv_anim_exec_xcb_t exec_cb,
@@ -79,20 +89,22 @@ static void enter_confirm_mode(void);
 static void exit_confirm_mode(void);
 static void transition_to_summary(void);
 static void transition_to_weekly(void);
+static void cleanup_screen(void);
 
 static void anim_set_opa(void *var, int32_t val)
 {
-    lv_obj_set_style_opa((lv_obj_t *)var, (lv_opa_t)val, 0);
+    if (var) lv_obj_set_style_opa((lv_obj_t *)var, (lv_opa_t)val, 0);
 }
 
 static void anim_set_border_width(void *var, int32_t val)
 {
-    lv_obj_set_style_border_width((lv_obj_t *)var, val, 0);
+    if (var) lv_obj_set_style_border_width((lv_obj_t *)var, val, 0);
 }
 
 static void animate_style(lv_obj_t *obj, lv_anim_exec_xcb_t exec_cb,
                           int32_t from, int32_t to, uint32_t time, uint32_t delay)
 {
+    if (!obj) return;
     lv_anim_del(obj, exec_cb);
     lv_anim_t a;
     lv_anim_init(&a);
@@ -109,6 +121,7 @@ static void start_pulse_animation(void)
 {
     if (!badge_pulse) return;
 
+    lv_anim_del(badge_pulse, (lv_anim_exec_xcb_t)anim_set_opa);
     lv_anim_t a;
     lv_anim_init(&a);
     lv_anim_set_var(&a, badge_pulse);
@@ -134,6 +147,20 @@ static void update_time_cb(lv_timer_t *timer)
 
     if (lbl_clock) lv_label_set_text(lbl_clock, time_buf);
     if (lbl_active_clock) lv_label_set_text(lbl_active_clock, time_buf);
+}
+
+static const char *get_day_abbr(int dow)
+{
+    switch (dow) {
+        case 0: return "Sun";
+        case 1: return "Mon";
+        case 2: return "Tue";
+        case 3: return "Wed";
+        case 4: return "Thu";
+        case 5: return "Fri";
+        case 6: return "Sat";
+        default: return "";
+    }
 }
 
 static const char *get_greeting(void)
@@ -162,8 +189,16 @@ static void format_duration(char *buf, size_t len, uint16_t minutes)
     }
 }
 
+static void cleanup_screen(void)
+{
+    if (clock_timer) {
+        lv_timer_del(clock_timer);
+        clock_timer = NULL;
+    }
+}
+
 /* ============================================================
- *  FOCUS STYLES
+ * FOCUS STYLES
  * ============================================================ */
 static void update_focus_styles(void)
 {
@@ -222,38 +257,41 @@ static void update_focus_styles(void)
 }
 
 /* ============================================================
- *  STATE TRANSITIONS
+ * STATE TRANSITIONS
  * ============================================================ */
 static void hide_all_widgets(void)
 {
-    lv_obj_add_flag(lbl_title, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(btn_start_session, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(btn_weekly_review, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(lbl_greeting, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(clock_frame, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(lbl_clock, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(btn_start_now, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(btn_back, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(lbl_tracking, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(btn_awake, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(lbl_awake_hint, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(badge_pulse, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(lbl_goodnight, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(lbl_active_clock, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(btn_nevermind, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(lbl_result, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(lbl_sub, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(lbl_hint, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(lbl_weekly_header, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(lbl_weekly_avg, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(lbl_weekly_msg, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(chart_weekly, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(btn_weekly_back, LV_OBJ_FLAG_HIDDEN);
+    if (lbl_title) lv_obj_add_flag(lbl_title, LV_OBJ_FLAG_HIDDEN);
+    if (btn_start_session) lv_obj_add_flag(btn_start_session, LV_OBJ_FLAG_HIDDEN);
+    if (btn_weekly_review) lv_obj_add_flag(btn_weekly_review, LV_OBJ_FLAG_HIDDEN);
+    if (lbl_greeting) lv_obj_add_flag(lbl_greeting, LV_OBJ_FLAG_HIDDEN);
+    if (clock_frame) lv_obj_add_flag(clock_frame, LV_OBJ_FLAG_HIDDEN);
+    if (lbl_clock) lv_obj_add_flag(lbl_clock, LV_OBJ_FLAG_HIDDEN);
+    if (btn_start_now) lv_obj_add_flag(btn_start_now, LV_OBJ_FLAG_HIDDEN);
+    if (btn_back) lv_obj_add_flag(btn_back, LV_OBJ_FLAG_HIDDEN);
+    if (lbl_tracking) lv_obj_add_flag(lbl_tracking, LV_OBJ_FLAG_HIDDEN);
+    if (btn_awake) lv_obj_add_flag(btn_awake, LV_OBJ_FLAG_HIDDEN);
+    if (lbl_awake_hint) lv_obj_add_flag(lbl_awake_hint, LV_OBJ_FLAG_HIDDEN);
+    if (badge_pulse) lv_obj_add_flag(badge_pulse, LV_OBJ_FLAG_HIDDEN);
+    if (lbl_goodnight) lv_obj_add_flag(lbl_goodnight, LV_OBJ_FLAG_HIDDEN);
+    if (lbl_active_clock) lv_obj_add_flag(lbl_active_clock, LV_OBJ_FLAG_HIDDEN);
+    if (btn_nevermind) lv_obj_add_flag(btn_nevermind, LV_OBJ_FLAG_HIDDEN);
+    if (lbl_result) lv_obj_add_flag(lbl_result, LV_OBJ_FLAG_HIDDEN);
+    if (lbl_sub) lv_obj_add_flag(lbl_sub, LV_OBJ_FLAG_HIDDEN);
+    if (lbl_hint) lv_obj_add_flag(lbl_hint, LV_OBJ_FLAG_HIDDEN);
+    if (lbl_weekly_header) lv_obj_add_flag(lbl_weekly_header, LV_OBJ_FLAG_HIDDEN);
+    if (lbl_weekly_avg) lv_obj_add_flag(lbl_weekly_avg, LV_OBJ_FLAG_HIDDEN);
+    if (lbl_weekly_msg) lv_obj_add_flag(lbl_weekly_msg, LV_OBJ_FLAG_HIDDEN);
+    if (chart_weekly) lv_obj_add_flag(chart_weekly, LV_OBJ_FLAG_HIDDEN);
+    if (btn_weekly_back) lv_obj_add_flag(btn_weekly_back, LV_OBJ_FLAG_HIDDEN);
+    for (int i = 0; i < 7; i++) {
+        if (day_labels[i]) lv_obj_add_flag(day_labels[i], LV_OBJ_FLAG_HIDDEN);
+    }
 }
 
 static void transition_to_intro(void)
 {
-    lv_anim_del(badge_pulse, NULL);
+    if (badge_pulse) lv_anim_del(badge_pulse, (lv_anim_exec_xcb_t)anim_set_opa);
     hide_all_widgets();
 
     current_state = SLEEP_STATE_INTRO;
@@ -268,14 +306,11 @@ static void transition_to_intro(void)
     lv_obj_set_style_opa(btn_start_session, LV_OPA_COVER, 0);
     lv_obj_set_style_opa(btn_weekly_review, LV_OPA_COVER, 0);
 
-    lv_obj_set_style_transform_width(btn_start_session, 0, 0);
-    lv_obj_set_style_transform_height(btn_start_session, 0, 0);
     lv_obj_set_style_border_width(btn_start_session, 0, 0);
-    lv_obj_set_style_transform_width(btn_weekly_review, 0, 0);
-    lv_obj_set_style_transform_height(btn_weekly_review, 0, 0);
     lv_obj_set_style_border_width(btn_weekly_review, 0, 0);
 
     update_focus_styles();
+    app_state_broadcast_sleep_state("intro");
     ESP_LOGI(TAG, "Transitioned to Intro state");
 }
 
@@ -301,15 +336,12 @@ static void transition_to_start(void)
     lv_obj_set_style_opa(btn_start_now, LV_OPA_COVER, 0);
     lv_obj_set_style_opa(btn_back, LV_OPA_COVER, 0);
 
-    lv_obj_set_style_transform_width(btn_start_now, 0, 0);
-    lv_obj_set_style_transform_height(btn_start_now, 0, 0);
     lv_obj_set_style_border_width(btn_start_now, 0, 0);
-    lv_obj_set_style_transform_width(btn_back, 0, 0);
-    lv_obj_set_style_transform_height(btn_back, 0, 0);
     lv_obj_set_style_border_width(btn_back, 0, 0);
 
     update_time_cb(NULL);
     update_focus_styles();
+    app_state_broadcast_sleep_state("start");
     ESP_LOGI(TAG, "Transitioned to Start state");
 }
 
@@ -323,7 +355,8 @@ static void transition_to_active(void)
     prev_focus_index = -1;
 
     lv_label_set_text(lbl_awake_text, "AWAKE?");
-    lv_obj_set_style_bg_color(btn_awake, LV_COLOR_SUCCESS, 0);
+    lv_obj_set_style_bg_color(btn_awake, ACCENT_DARK, 0);
+    lv_obj_align(btn_awake, LV_ALIGN_BOTTOM_MID, 0, -40);
     lv_obj_add_flag(btn_nevermind, LV_OBJ_FLAG_HIDDEN);
 
     lv_obj_clear_flag(lbl_tracking, LV_OBJ_FLAG_HIDDEN);
@@ -339,30 +372,28 @@ static void transition_to_active(void)
     lv_obj_set_style_opa(lbl_goodnight, LV_OPA_COVER, 0);
     lv_obj_set_style_opa(lbl_active_clock, LV_OPA_COVER, 0);
 
-    lv_obj_set_style_opa(badge_pulse, LV_OPA_50, 0);
     start_pulse_animation();
 
     update_time_cb(NULL);
+    app_state_broadcast_sleep_state("active");
     ESP_LOGI(TAG, "Transitioned to Active state");
 }
 
 static void enter_confirm_mode(void)
 {
     confirm_mode = true;
-    focus_index = 0;
+    focus_index = 1; // Default safely to "Nevermind"
     prev_focus_index = -1;
 
-    lv_label_set_text(lbl_awake_text, "ARE YOU SURE?");
+    lv_label_set_text(lbl_awake_text, "YES");
     lv_obj_set_style_bg_color(btn_awake, LV_COLOR_ERROR, 0);
     lv_obj_set_style_border_color(btn_awake, LV_COLOR_ERROR, 0);
+    lv_obj_align(btn_awake, LV_ALIGN_BOTTOM_MID, -85, -40);
     lv_obj_clear_flag(btn_nevermind, LV_OBJ_FLAG_HIDDEN);
     lv_obj_set_style_opa(btn_nevermind, LV_OPA_COVER, 0);
+    lv_obj_align(btn_nevermind, LV_ALIGN_BOTTOM_MID, 85, -40);
 
-    lv_obj_set_style_transform_width(btn_awake, 0, 0);
-    lv_obj_set_style_transform_height(btn_awake, 0, 0);
     lv_obj_set_style_border_width(btn_awake, 0, 0);
-    lv_obj_set_style_transform_width(btn_nevermind, 0, 0);
-    lv_obj_set_style_transform_height(btn_nevermind, 0, 0);
     lv_obj_set_style_border_width(btn_nevermind, 0, 0);
 
     update_focus_styles();
@@ -378,10 +409,9 @@ static void exit_confirm_mode(void)
     lv_label_set_text(lbl_awake_text, "AWAKE?");
     lv_obj_set_style_bg_color(btn_awake, LV_COLOR_SUCCESS, 0);
     lv_obj_set_style_border_color(btn_awake, LV_COLOR_SUCCESS, 0);
+    lv_obj_align(btn_awake, LV_ALIGN_BOTTOM_MID, 0, -40);
     lv_obj_add_flag(btn_nevermind, LV_OBJ_FLAG_HIDDEN);
 
-    lv_obj_set_style_transform_width(btn_awake, 0, 0);
-    lv_obj_set_style_transform_height(btn_awake, 0, 0);
     lv_obj_set_style_border_width(btn_awake, 0, 0);
 
     ESP_LOGI(TAG, "Exited confirm mode");
@@ -389,7 +419,7 @@ static void exit_confirm_mode(void)
 
 static void transition_to_summary(void)
 {
-    lv_anim_del(badge_pulse, NULL);
+    if (badge_pulse) lv_anim_del(badge_pulse, (lv_anim_exec_xcb_t)anim_set_opa);
     hide_all_widgets();
 
     current_state = SLEEP_STATE_SUMMARY;
@@ -399,6 +429,9 @@ static void transition_to_summary(void)
     char result_buf[48];
     format_duration(result_buf, sizeof(result_buf), (uint16_t)duration);
     lv_label_set_text(lbl_result, result_buf);
+
+    app_state_broadcast_sleep_session((int)duration);
+    app_state_broadcast_sleep_state("summary");
 
     float avg = sleep_store_get_weekly_avg_hours();
     if (avg > 0) {
@@ -439,10 +472,27 @@ static void transition_to_weekly(void)
         lv_label_set_text(lbl_weekly_msg, "No data yet — start logging!");
     }
 
-    uint16_t days[7];
-    sleep_store_get_last_7_days(days);
-    if (chart_series) {
-        lv_chart_set_ext_y_array(chart_weekly, chart_series, (lv_coord_t *)days);
+    uint16_t raw_days[7];
+    sleep_store_get_last_7_days(raw_days);
+    for (int i = 0; i < 7; i++) {
+        chart_days[i] = (lv_coord_t)raw_days[i];
+    }
+
+    if (chart_series && chart_weekly) {
+        lv_chart_set_ext_y_array(chart_weekly, chart_series, chart_days);
+        lv_chart_refresh(chart_weekly);
+    }
+
+    time_t now;
+    struct tm timeinfo;
+    time(&now);
+    localtime_r(&now, &timeinfo);
+    int today_dow = timeinfo.tm_wday;
+    for (int i = 0; i < 7; i++) {
+        int dow = (today_dow - (6 - i) + 7) % 7;
+        if (day_labels[i]) {
+            lv_label_set_text(day_labels[i], get_day_abbr(dow));
+        }
     }
 
     lv_obj_clear_flag(lbl_weekly_header, LV_OBJ_FLAG_HIDDEN);
@@ -455,23 +505,25 @@ static void transition_to_weekly(void)
     lv_obj_set_style_opa(lbl_weekly_msg, LV_OPA_COVER, 0);
     lv_obj_set_style_opa(chart_weekly, LV_OPA_COVER, 0);
     lv_obj_set_style_opa(btn_weekly_back, LV_OPA_COVER, 0);
+    for (int i = 0; i < 7; i++) {
+        if (day_labels[i]) lv_obj_clear_flag(day_labels[i], LV_OBJ_FLAG_HIDDEN);
+    }
 
-    lv_obj_set_style_transform_width(btn_weekly_back, 0, 0);
-    lv_obj_set_style_transform_height(btn_weekly_back, 0, 0);
     lv_obj_set_style_border_width(btn_weekly_back, 0, 0);
 
+    app_state_broadcast_sleep_state("weekly");
     ESP_LOGI(TAG, "Transitioned to Weekly state");
 }
 
 /* ============================================================
- *  SCREEN CREATE
+ * SCREEN CREATE
  * ============================================================ */
 lv_obj_t *screen_sleep_create(void)
 {
-    sleep_store_init();
+    cleanup_screen();
 
     screen = lv_obj_create(NULL);
-    lv_obj_set_style_bg_color(screen, LV_COLOR_BG, 0);
+    lv_obj_set_style_bg_color(screen, pastel_color(ACCENT), 0);
     lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
 
     /* ---- INTRO STATE ---- */
@@ -485,11 +537,11 @@ lv_obj_t *screen_sleep_create(void)
     lv_obj_set_size(btn_start_session, 240, 240);
     lv_obj_align(btn_start_session, LV_ALIGN_CENTER, 0, -20);
     lv_obj_set_style_radius(btn_start_session, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(btn_start_session, LV_COLOR_PRIMARY, 0);
+    lv_obj_set_style_bg_color(btn_start_session, ACCENT, 0);
     lv_obj_set_style_shadow_width(btn_start_session, 0, 0);
     lv_obj_set_style_shadow_opa(btn_start_session, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(btn_start_session, 0, 0);
-    lv_obj_set_style_border_color(btn_start_session, LV_COLOR_PRIMARY_LIGHT, 0);
+    lv_obj_set_style_border_color(btn_start_session, ACCENT_LIGHT, 0);
     lv_obj_set_style_pad_all(btn_start_session, 0, 0);
     lv_obj_t *lbl_start_session = lv_label_create(btn_start_session);
     lv_label_set_text(lbl_start_session, "START\nSESSION");
@@ -502,11 +554,11 @@ lv_obj_t *screen_sleep_create(void)
     lv_obj_set_size(btn_weekly_review, 160, 50);
     lv_obj_align(btn_weekly_review, LV_ALIGN_CENTER, 0, 150);
     lv_obj_set_style_radius(btn_weekly_review, 25, 0);
-    lv_obj_set_style_bg_color(btn_weekly_review, LV_COLOR_PRIMARY_DARK, 0);
+    lv_obj_set_style_bg_color(btn_weekly_review, ACCENT_DARK, 0);
     lv_obj_set_style_shadow_width(btn_weekly_review, 0, 0);
     lv_obj_set_style_shadow_opa(btn_weekly_review, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(btn_weekly_review, 0, 0);
-    lv_obj_set_style_border_color(btn_weekly_review, LV_COLOR_PRIMARY_LIGHT, 0);
+    lv_obj_set_style_border_color(btn_weekly_review, ACCENT_LIGHT, 0);
     lv_obj_set_style_pad_all(btn_weekly_review, 0, 0);
     lv_obj_t *lbl_weekly_review = lv_label_create(btn_weekly_review);
     lv_label_set_text(lbl_weekly_review, "Weekly Review");
@@ -542,11 +594,11 @@ lv_obj_t *screen_sleep_create(void)
     lv_obj_set_size(btn_start_now, 200, 56);
     lv_obj_align(btn_start_now, LV_ALIGN_CENTER, 0, 120);
     lv_obj_set_style_radius(btn_start_now, 28, 0);
-    lv_obj_set_style_bg_color(btn_start_now, LV_COLOR_PRIMARY, 0);
+    lv_obj_set_style_bg_color(btn_start_now, ACCENT, 0);
     lv_obj_set_style_shadow_width(btn_start_now, 0, 0);
     lv_obj_set_style_shadow_opa(btn_start_now, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(btn_start_now, 0, 0);
-    lv_obj_set_style_border_color(btn_start_now, LV_COLOR_PRIMARY_LIGHT, 0);
+    lv_obj_set_style_border_color(btn_start_now, ACCENT_LIGHT, 0);
     lv_obj_set_style_pad_all(btn_start_now, 0, 0);
     lv_obj_t *lbl_start_now = lv_label_create(btn_start_now);
     lv_label_set_text(lbl_start_now, "START SESSION");
@@ -559,11 +611,11 @@ lv_obj_t *screen_sleep_create(void)
     lv_obj_set_size(btn_back, 120, 40);
     lv_obj_align(btn_back, LV_ALIGN_CENTER, 0, 185);
     lv_obj_set_style_radius(btn_back, 20, 0);
-    lv_obj_set_style_bg_color(btn_back, LV_COLOR_PRIMARY_DARK, 0);
+    lv_obj_set_style_bg_color(btn_back, ACCENT_DARK, 0);
     lv_obj_set_style_shadow_width(btn_back, 0, 0);
     lv_obj_set_style_shadow_opa(btn_back, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(btn_back, 0, 0);
-    lv_obj_set_style_border_color(btn_back, LV_COLOR_PRIMARY_LIGHT, 0);
+    lv_obj_set_style_border_color(btn_back, ACCENT_LIGHT, 0);
     lv_obj_set_style_pad_all(btn_back, 0, 0);
     lv_obj_t *lbl_back = lv_label_create(btn_back);
     lv_label_set_text(lbl_back, "Back");
@@ -573,23 +625,6 @@ lv_obj_t *screen_sleep_create(void)
     lv_obj_add_flag(btn_back, LV_OBJ_FLAG_HIDDEN);
 
     /* ---- ACTIVE STATE ---- */
-    btn_awake = lv_btn_create(screen);
-    lv_obj_set_size(btn_awake, 160, 50);
-    lv_obj_align(btn_awake, LV_ALIGN_TOP_MID, 0, 40);
-    lv_obj_set_style_radius(btn_awake, 25, 0);
-    lv_obj_set_style_bg_color(btn_awake, LV_COLOR_SUCCESS, 0);
-    lv_obj_set_style_shadow_width(btn_awake, 0, 0);
-    lv_obj_set_style_shadow_opa(btn_awake, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(btn_awake, 0, 0);
-    lv_obj_set_style_border_color(btn_awake, LV_COLOR_SUCCESS, 0);
-    lv_obj_set_style_pad_all(btn_awake, 0, 0);
-    lbl_awake_text = lv_label_create(btn_awake);
-    lv_label_set_text(lbl_awake_text, "AWAKE?");
-    lv_obj_set_style_text_font(lbl_awake_text, &lv_font_montserrat_16, 0);
-    lv_obj_set_style_text_color(lbl_awake_text, LV_COLOR_BG_CARD, 0);
-    lv_obj_center(lbl_awake_text);
-    lv_obj_add_flag(btn_awake, LV_OBJ_FLAG_HIDDEN);
-
     lbl_tracking = lv_label_create(screen);
     lv_label_set_text(lbl_tracking, "Tracking sleep...");
     lv_obj_set_style_text_font(lbl_tracking, &lv_font_montserrat_14, 0);
@@ -597,18 +632,11 @@ lv_obj_t *screen_sleep_create(void)
     lv_obj_align(lbl_tracking, LV_ALIGN_TOP_MID, 0, 12);
     lv_obj_add_flag(lbl_tracking, LV_OBJ_FLAG_HIDDEN);
 
-    lbl_awake_hint = lv_label_create(screen);
-    lv_label_set_text(lbl_awake_hint, "Press when you wake up");
-    lv_obj_set_style_text_font(lbl_awake_hint, &lv_font_montserrat_14, 0);
-    lv_obj_set_style_text_color(lbl_awake_hint, LV_COLOR_TEXT_MUTED, 0);
-    lv_obj_align(lbl_awake_hint, LV_ALIGN_TOP_MID, 0, 85);
-    lv_obj_add_flag(lbl_awake_hint, LV_OBJ_FLAG_HIDDEN);
-
     badge_pulse = lv_obj_create(screen);
     lv_obj_set_size(badge_pulse, 200, 200);
-    lv_obj_align(badge_pulse, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_align(badge_pulse, LV_ALIGN_CENTER, 0, -30);
     lv_obj_set_style_radius(badge_pulse, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(badge_pulse, LV_COLOR_PRIMARY, 0);
+    lv_obj_set_style_bg_color(badge_pulse, ACCENT, 0);
     lv_obj_set_style_bg_opa(badge_pulse, LV_OPA_50, 0);
     lv_obj_set_style_border_width(badge_pulse, 0, 0);
     lv_obj_set_style_shadow_width(badge_pulse, 0, 0);
@@ -626,18 +654,42 @@ lv_obj_t *screen_sleep_create(void)
     lv_label_set_text(lbl_active_clock, "00:00");
     lv_obj_set_style_text_font(lbl_active_clock, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_color(lbl_active_clock, LV_COLOR_TEXT_SECONDARY, 0);
-    lv_obj_align(lbl_active_clock, LV_ALIGN_BOTTOM_MID, 0, -40);
+    lv_obj_align(lbl_active_clock, LV_ALIGN_CENTER, 0, 80);
     lv_obj_add_flag(lbl_active_clock, LV_OBJ_FLAG_HIDDEN);
+
+    btn_awake = lv_btn_create(screen);
+    lv_obj_set_size(btn_awake, 180, 50);
+    lv_obj_align(btn_awake, LV_ALIGN_BOTTOM_MID, 0, -40);
+    lv_obj_set_style_radius(btn_awake, 25, 0);
+    lv_obj_set_style_bg_color(btn_awake, ACCENT_DARK, 0);
+    lv_obj_set_style_shadow_width(btn_awake, 0, 0);
+    lv_obj_set_style_shadow_opa(btn_awake, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(btn_awake, 0, 0);
+    lv_obj_set_style_border_color(btn_awake, ACCENT_LIGHT, 0);
+    lv_obj_set_style_pad_all(btn_awake, 0, 0);
+    lbl_awake_text = lv_label_create(btn_awake);
+    lv_label_set_text(lbl_awake_text, "AWAKE?");
+    lv_obj_set_style_text_font(lbl_awake_text, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_color(lbl_awake_text, LV_COLOR_BG_CARD, 0);
+    lv_obj_center(lbl_awake_text);
+    lv_obj_add_flag(btn_awake, LV_OBJ_FLAG_HIDDEN);
+
+    lbl_awake_hint = lv_label_create(screen);
+    lv_label_set_text(lbl_awake_hint, "Press when you wake up");
+    lv_obj_set_style_text_font(lbl_awake_hint, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(lbl_awake_hint, LV_COLOR_TEXT_MUTED, 0);
+    lv_obj_align(lbl_awake_hint, LV_ALIGN_BOTTOM_MID, 0, -100);
+    lv_obj_add_flag(lbl_awake_hint, LV_OBJ_FLAG_HIDDEN);
 
     btn_nevermind = lv_btn_create(screen);
     lv_obj_set_size(btn_nevermind, 140, 40);
-    lv_obj_align(btn_nevermind, LV_ALIGN_TOP_MID, 0, 100);
+    lv_obj_align(btn_nevermind, LV_ALIGN_BOTTOM_MID, 110, -45);
     lv_obj_set_style_radius(btn_nevermind, 20, 0);
-    lv_obj_set_style_bg_color(btn_nevermind, LV_COLOR_PRIMARY_DARK, 0);
+    lv_obj_set_style_bg_color(btn_nevermind, ACCENT_DARK, 0);
     lv_obj_set_style_shadow_width(btn_nevermind, 0, 0);
     lv_obj_set_style_shadow_opa(btn_nevermind, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(btn_nevermind, 0, 0);
-    lv_obj_set_style_border_color(btn_nevermind, LV_COLOR_PRIMARY_LIGHT, 0);
+    lv_obj_set_style_border_color(btn_nevermind, ACCENT_LIGHT, 0);
     lv_obj_set_style_pad_all(btn_nevermind, 0, 0);
     lv_obj_t *lbl_nevermind = lv_label_create(btn_nevermind);
     lv_label_set_text(lbl_nevermind, "Nevermind");
@@ -696,23 +748,37 @@ lv_obj_t *screen_sleep_create(void)
     lv_chart_set_type(chart_weekly, LV_CHART_TYPE_BAR);
     lv_chart_set_point_count(chart_weekly, 7);
     lv_chart_set_range(chart_weekly, LV_CHART_AXIS_PRIMARY_Y, 0, 720);
+    lv_chart_set_div_line_count(chart_weekly, 4, 0);
+    lv_obj_set_style_pad_left(chart_weekly, 6, 0);
+    lv_obj_set_style_pad_bottom(chart_weekly, 4, 0);
     chart_series = lv_chart_add_series(chart_weekly,
-        LV_COLOR_PRIMARY, LV_CHART_AXIS_PRIMARY_Y);
+        ACCENT, LV_CHART_AXIS_PRIMARY_Y);
     if (chart_series) {
-        lv_coord_t zeros[7] = {0, 0, 0, 0, 0, 0, 0};
-        lv_chart_set_ext_y_array(chart_weekly, chart_series, zeros);
+        lv_chart_set_ext_y_array(chart_weekly, chart_series, chart_days);
     }
     lv_obj_add_flag(chart_weekly, LV_OBJ_FLAG_HIDDEN);
+
+    int chart_w = 280;
+    int bar_width = chart_w / 7;
+    for (int i = 0; i < 7; i++) {
+        day_labels[i] = lv_label_create(screen);
+        lv_label_set_text(day_labels[i], "");
+        lv_obj_set_style_text_font(day_labels[i], &lv_font_montserrat_14, 0);
+        lv_obj_set_style_text_color(day_labels[i], LV_COLOR_TEXT_MUTED, 0);
+        int lbl_x = -chart_w / 2 + bar_width * i + bar_width / 2 + 3;
+        lv_obj_align(day_labels[i], LV_ALIGN_CENTER, lbl_x, 100);
+        lv_obj_add_flag(day_labels[i], LV_OBJ_FLAG_HIDDEN);
+    }
 
     btn_weekly_back = lv_btn_create(screen);
     lv_obj_set_size(btn_weekly_back, 110, 40);
     lv_obj_align(btn_weekly_back, LV_ALIGN_BOTTOM_MID, 0, -20);
     lv_obj_set_style_radius(btn_weekly_back, 20, 0);
-    lv_obj_set_style_bg_color(btn_weekly_back, LV_COLOR_PRIMARY_DARK, 0);
+    lv_obj_set_style_bg_color(btn_weekly_back, ACCENT_DARK, 0);
     lv_obj_set_style_shadow_width(btn_weekly_back, 0, 0);
     lv_obj_set_style_shadow_opa(btn_weekly_back, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(btn_weekly_back, 0, 0);
-    lv_obj_set_style_border_color(btn_weekly_back, LV_COLOR_PRIMARY_LIGHT, 0);
+    lv_obj_set_style_border_color(btn_weekly_back, ACCENT_LIGHT, 0);
     lv_obj_set_style_pad_all(btn_weekly_back, 0, 0);
     lv_obj_t *lbl_weekly_back = lv_label_create(btn_weekly_back);
     lv_label_set_text(lbl_weekly_back, "Back");
@@ -732,17 +798,21 @@ lv_obj_t *screen_sleep_create(void)
 }
 
 /* ============================================================
- *  ENCODER EVENT HANDLER
+ * ENCODER EVENT HANDLER
  * ============================================================ */
 void screen_sleep_encoder_event(lv_indev_data_t *data)
 {
+    if (!data) return;
+
+    bool is_pressed = (data->state == LV_INDEV_STATE_PR);
+
     switch (current_state) {
     case SLEEP_STATE_INTRO:
         if (data->enc_diff != 0) {
             focus_index = (focus_index == 0) ? 1 : 0;
             update_focus_styles();
         }
-        if (data->state == LV_INDEV_STATE_PR && data->enc_diff == 0) {
+        if (is_pressed && data->enc_diff == 0) {
             if (focus_index == 0) {
                 transition_to_start();
             } else {
@@ -756,7 +826,7 @@ void screen_sleep_encoder_event(lv_indev_data_t *data)
             focus_index = (focus_index == 0) ? 1 : 0;
             update_focus_styles();
         }
-        if (data->state == LV_INDEV_STATE_PR && data->enc_diff == 0) {
+        if (is_pressed && data->enc_diff == 0) {
             if (focus_index == 0) {
                 sleep_store_start_session();
                 transition_to_active();
@@ -768,7 +838,7 @@ void screen_sleep_encoder_event(lv_indev_data_t *data)
 
     case SLEEP_STATE_ACTIVE:
         if (!confirm_mode) {
-            if (data->state == LV_INDEV_STATE_PR && data->enc_diff == 0) {
+            if (is_pressed && data->enc_diff == 0) {
                 enter_confirm_mode();
             }
         } else {
@@ -776,7 +846,7 @@ void screen_sleep_encoder_event(lv_indev_data_t *data)
                 focus_index = (focus_index == 0) ? 1 : 0;
                 update_focus_styles();
             }
-            if (data->state == LV_INDEV_STATE_PR && data->enc_diff == 0) {
+            if (is_pressed && data->enc_diff == 0) {
                 if (focus_index == 0) {
                     transition_to_summary();
                 } else {
@@ -787,14 +857,13 @@ void screen_sleep_encoder_event(lv_indev_data_t *data)
         break;
 
     case SLEEP_STATE_SUMMARY:
-        if (data->enc_diff != 0 ||
-            (data->state == LV_INDEV_STATE_PR && data->enc_diff == 0)) {
+        if (is_pressed || data->enc_diff != 0) {
             transition_to_start();
         }
         break;
 
     case SLEEP_STATE_WEEKLY:
-        if (data->state == LV_INDEV_STATE_PR && data->enc_diff == 0) {
+        if (is_pressed && data->enc_diff == 0) {
             transition_to_intro();
         }
         break;

@@ -1,6 +1,6 @@
 #include "screen_timer_presets.h"
 #include "ui_manager.h"
-#include "studybud_theme.h"
+#include "color_palette.h"
 #include "../app_state.h"
 #include "../utils/timer_store.h"
 #include "esp_log.h"
@@ -16,7 +16,7 @@ static const char *TAG = "Screen_TimerPresets";
 #define FOCUSED_SIZE   340
 #define SMALL_SIZE     90
 #define CARD_SPACING   380
-#define ANIM_SPEED     4
+#define ANIM_SPEED     3.5
 #define ACTION_BTN_SIZE 40
 #define ACTION_BORDER_W 3
 
@@ -118,7 +118,7 @@ static void create_card(carousel_card_t *c, int index)
     lv_obj_set_style_bg_color(card, LV_COLOR_BG_CARD, 0);
     lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(card, 0, 0);
-    lv_obj_set_style_border_color(card, LV_COLOR_PRIMARY, 0);
+    lv_obj_set_style_border_color(card, theme_accent(SCREEN_TIMER_PRESETS), 0);
     lv_obj_set_style_shadow_width(card, 10, 0);
     lv_obj_set_style_shadow_opa(card, LV_OPA_20, 0);
     lv_obj_set_style_pad_all(card, 0, 0);
@@ -127,7 +127,7 @@ static void create_card(carousel_card_t *c, int index)
 
     lv_obj_t *icon = lv_label_create(card);
     lv_obj_set_style_text_font(icon, &lv_font_montserrat_36, 0);
-    lv_obj_set_style_text_color(icon, LV_COLOR_PRIMARY, 0);
+    lv_obj_set_style_text_color(icon, theme_accent(SCREEN_TIMER_PRESETS), 0);
     lv_obj_align(icon, LV_ALIGN_CENTER, 0, -60);
     c->lbl_icon = icon;
 
@@ -159,19 +159,19 @@ static void create_card(carousel_card_t *c, int index)
             lv_obj_set_size(btn, ACTION_BTN_SIZE, ACTION_BTN_SIZE);
             lv_obj_align(btn, LV_ALIGN_BOTTOM_MID, (a == 0 ? -32 : 32), -45);
             lv_obj_set_style_radius(btn, LV_RADIUS_CIRCLE, 0);
-            lv_obj_set_style_bg_color(btn, LV_COLOR_PRIMARY_DARK, 0);
+            lv_obj_set_style_bg_color(btn, theme_accent_dark(SCREEN_TIMER_PRESETS), 0);
             lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, 0);
             lv_obj_set_style_shadow_width(btn, 0, 0);
             lv_obj_set_style_shadow_opa(btn, LV_OPA_TRANSP, 0);
             lv_obj_set_style_border_width(btn, 0, 0);
-            lv_obj_set_style_border_color(btn, LV_COLOR_PRIMARY_LIGHT, 0);
+            lv_obj_set_style_border_color(btn, theme_accent_light(SCREEN_TIMER_PRESETS), 0);
             lv_obj_set_style_pad_all(btn, 0, 0);
             c->action_btns[a] = btn;
 
             lv_obj_t *lbl = lv_label_create(btn);
             lv_label_set_text(lbl, a_icons[a]);
             lv_obj_set_style_text_font(lbl, &lv_font_montserrat_16, 0);
-            lv_obj_set_style_text_color(lbl, LV_COLOR_BG_CARD, 0);
+            lv_obj_set_style_text_color(lbl, contrast_text_color(theme_accent_dark(SCREEN_TIMER_PRESETS)), 0);
             lv_obj_center(lbl);
             c->action_lbls[a] = lbl;
         }
@@ -180,12 +180,12 @@ static void create_card(carousel_card_t *c, int index)
         lv_obj_set_size(back, 90, 28);
         lv_obj_align(back, LV_ALIGN_BOTTOM_MID, 0, -10);
         lv_obj_set_style_radius(back, 14, 0);
-        lv_obj_set_style_bg_color(back, LV_COLOR_PRIMARY_DARK, 0);
+        lv_obj_set_style_bg_color(back, theme_accent_dark(SCREEN_TIMER_PRESETS), 0);
         lv_obj_set_style_bg_opa(back, LV_OPA_COVER, 0);
         lv_obj_set_style_shadow_width(back, 0, 0);
         lv_obj_set_style_shadow_opa(back, LV_OPA_TRANSP, 0);
         lv_obj_set_style_border_width(back, 0, 0);
-        lv_obj_set_style_border_color(back, LV_COLOR_PRIMARY_LIGHT, 0);
+        lv_obj_set_style_border_color(back, theme_accent_light(SCREEN_TIMER_PRESETS), 0);
         lv_obj_set_style_pad_all(back, 0, 0);
         lv_obj_add_flag(back, LV_OBJ_FLAG_HIDDEN);
         c->back_btn = back;
@@ -193,7 +193,7 @@ static void create_card(carousel_card_t *c, int index)
         lv_obj_t *back_l = lv_label_create(back);
         lv_label_set_text(back_l, "BACK");
         lv_obj_set_style_text_font(back_l, &lv_font_montserrat_14, 0);
-        lv_obj_set_style_text_color(back_l, LV_COLOR_BG_CARD, 0);
+        lv_obj_set_style_text_color(back_l, contrast_text_color(theme_accent_dark(SCREEN_TIMER_PRESETS)), 0);
         lv_obj_center(back_l);
         c->back_lbl = back_l;
     } else {
@@ -223,47 +223,62 @@ static void anim_timer_cb(lv_timer_t *timer)
         if (!moving_x && !moving_size && !moving_opa) continue;
         any_moving = true;
 
+        /* Smooth Exponential Interpolation with tight convergence threshold */
         if (moving_x) {
             int diff = c->target_x - c->cur_x;
-            if (abs(diff) < 2) c->cur_x = c->target_x;
-            else c->cur_x += diff / ANIM_SPEED;
-        }
-        if (moving_size) {
-            int diff = c->target_size - c->cur_size;
-            if (abs(diff) < 2) c->cur_size = c->target_size;
-            else c->cur_size += diff / ANIM_SPEED;
-        }
-        if (moving_opa) {
-            int diff = (int)c->target_opa - (int)c->cur_opa;
-            if (abs(diff) < 2) c->cur_opa = c->target_opa;
-            else c->cur_opa += diff / ANIM_SPEED;
+            if (abs(diff) <= 2) c->cur_x = c->target_x;
+            else c->cur_x += (diff > 0) ? (diff + 1) / ANIM_SPEED : (diff - 1) / ANIM_SPEED;
         }
 
+        if (moving_size) {
+            int diff = c->target_size - c->cur_size;
+            if (abs(diff) <= 2) c->cur_size = c->target_size;
+            else c->cur_size += (diff > 0) ? (diff + 1) / ANIM_SPEED : (diff - 1) / ANIM_SPEED;
+        }
+
+        if (moving_opa) {
+            int diff = (int)c->target_opa - (int)c->cur_opa;
+            if (abs(diff) <= 2) c->cur_opa = c->target_opa;
+            else c->cur_opa += (diff > 0) ? (diff + 1) / ANIM_SPEED : (diff - 1) / ANIM_SPEED;
+        }
+
+        /* Update Position */
         lv_obj_set_x(c->card, c->cur_x);
-        lv_obj_set_size(c->card, c->cur_size, c->cur_size);
         lv_obj_set_y(c->card, SCREEN_CY - c->cur_size / 2);
         lv_obj_set_style_opa(c->card, c->cur_opa, 0);
 
+        /* * ONLY update widget dimensions if size actually changed.
+         * Preventing unnecessary calls to lv_obj_set_size saves massive CPU draw cycles.
+         */
+        if (moving_size) {
+            lv_obj_set_size(c->card, c->cur_size, c->cur_size);
+        }
+
+        /* Visibility checks */
         bool on_screen = (c->cur_x > -FOCUSED_SIZE && c->cur_x < SCREEN_W + FOCUSED_SIZE);
-        bool show_content = on_screen && (c->cur_size > SMALL_SIZE + 20);
+        bool show_content = on_screen && (c->cur_size > SMALL_SIZE + 40);
 
         if (show_content && i < preset_count) {
-            lv_obj_clear_flag(c->lbl_name, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_clear_flag(c->lbl_time, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_clear_flag(c->lbl_sub, LV_OBJ_FLAG_HIDDEN);
-            if (c->has_actions) {
-                for (int a = 0; a < ACTION_PRIMARY_COUNT; a++)
-                    lv_obj_clear_flag(c->action_btns[a], LV_OBJ_FLAG_HIDDEN);
+            if (lv_obj_has_flag(c->lbl_name, LV_OBJ_FLAG_HIDDEN)) {
+                lv_obj_clear_flag(c->lbl_name, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_clear_flag(c->lbl_time, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_clear_flag(c->lbl_sub, LV_OBJ_FLAG_HIDDEN);
+                if (c->has_actions) {
+                    for (int a = 0; a < ACTION_PRIMARY_COUNT; a++)
+                        lv_obj_clear_flag(c->action_btns[a], LV_OBJ_FLAG_HIDDEN);
+                }
             }
         } else {
-            lv_obj_add_flag(c->lbl_name, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_add_flag(c->lbl_time, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_add_flag(c->lbl_sub, LV_OBJ_FLAG_HIDDEN);
-            if (c->has_actions) {
-                for (int a = 0; a < ACTION_PRIMARY_COUNT; a++)
-                    lv_obj_add_flag(c->action_btns[a], LV_OBJ_FLAG_HIDDEN);
-                if (c->back_btn)
-                    lv_obj_add_flag(c->back_btn, LV_OBJ_FLAG_HIDDEN);
+            if (!lv_obj_has_flag(c->lbl_name, LV_OBJ_FLAG_HIDDEN)) {
+                lv_obj_add_flag(c->lbl_name, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_add_flag(c->lbl_time, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_add_flag(c->lbl_sub, LV_OBJ_FLAG_HIDDEN);
+                if (c->has_actions) {
+                    for (int a = 0; a < ACTION_PRIMARY_COUNT; a++)
+                        lv_obj_add_flag(c->action_btns[a], LV_OBJ_FLAG_HIDDEN);
+                    if (c->back_btn)
+                        lv_obj_add_flag(c->back_btn, LV_OBJ_FLAG_HIDDEN);
+                }
             }
         }
     }
@@ -272,14 +287,13 @@ static void anim_timer_cb(lv_timer_t *timer)
         lv_timer_pause(anim_timer);
     }
 }
-
 static void update_card_border(void)
 {
     for (int i = 0; i < total_cards; i++) {
         carousel_card_t *c = &cards[i];
         bool selected = action_mode && (i == focused_index);
         lv_obj_set_style_border_width(c->card, selected ? ACTION_BORDER_W : 0, 0);
-        lv_obj_set_style_border_color(c->card, LV_COLOR_PRIMARY_LIGHT, 0);
+        lv_obj_set_style_border_color(c->card, theme_accent_light(SCREEN_TIMER_PRESETS), 0);
     }
 }
 
@@ -291,11 +305,12 @@ static void update_action_highlight(void)
     for (int a = 0; a < ACTION_PRIMARY_COUNT; a++) {
         if (!c->action_btns[a]) continue;
         bool focused = action_mode && (a == (int)action_idx);
-        lv_obj_set_style_bg_color(c->action_btns[a],
-            focused ? LV_COLOR_PRIMARY : LV_COLOR_PRIMARY_DARK, 0);
+        lv_color_t bg = focused ? theme_accent(SCREEN_TIMER_PRESETS) : theme_accent_dark(SCREEN_TIMER_PRESETS);
+        lv_obj_set_style_bg_color(c->action_btns[a], bg, 0);
+        lv_obj_set_style_text_color(c->action_lbls[a], contrast_text_color(bg), 0);
         lv_obj_set_style_border_width(c->action_btns[a],
             focused ? ACTION_BORDER_W : 0, 0);
-        lv_obj_set_style_border_color(c->action_btns[a], LV_COLOR_PRIMARY_LIGHT, 0);
+        lv_obj_set_style_border_color(c->action_btns[a], theme_accent_light(SCREEN_TIMER_PRESETS), 0);
     }
 
     if (c->back_btn) {
@@ -305,11 +320,12 @@ static void update_action_highlight(void)
             lv_obj_clear_flag(c->back_btn, LV_OBJ_FLAG_HIDDEN);
         else
             lv_obj_add_flag(c->back_btn, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_set_style_bg_color(c->back_btn,
-            back_focused ? LV_COLOR_PRIMARY : LV_COLOR_PRIMARY_DARK, 0);
+        lv_color_t back_bg = back_focused ? theme_accent(SCREEN_TIMER_PRESETS) : theme_accent_dark(SCREEN_TIMER_PRESETS);
+        lv_obj_set_style_bg_color(c->back_btn, back_bg, 0);
+        lv_obj_set_style_text_color(c->back_lbl, contrast_text_color(back_bg), 0);
         lv_obj_set_style_border_width(c->back_btn,
             back_focused ? ACTION_BORDER_W : 0, 0);
-        lv_obj_set_style_border_color(c->back_btn, LV_COLOR_PRIMARY_LIGHT, 0);
+        lv_obj_set_style_border_color(c->back_btn, theme_accent_light(SCREEN_TIMER_PRESETS), 0);
     }
 
     update_card_border();
@@ -336,20 +352,23 @@ static void update_focus(bool immediate)
             target_size = SMALL_SIZE;
             target_opa  = LV_OPA_40;
         } else {
-            target_x    = (diff < 0) ? -FOCUSED_SIZE - 50 : SCREEN_W + 50;
+            target_x    = (diff < 0) ? -FOCUSED_SIZE - 80 : SCREEN_W + 80;
             target_size = SMALL_SIZE;
             target_opa  = LV_OPA_TRANSP;
         }
 
-        int target_y = SCREEN_CY - target_size / 2;
+        cards[i].target_x    = target_x;
+        cards[i].target_size = target_size;
+        cards[i].target_opa  = target_opa;
 
         if (immediate) {
             cards[i].cur_x    = target_x;
             cards[i].cur_size = target_size;
             cards[i].cur_opa  = target_opa;
-            lv_obj_set_x(cards[i].card, target_x);
-            lv_obj_set_y(cards[i].card, target_y);
+
             lv_obj_set_size(cards[i].card, target_size, target_size);
+            lv_obj_set_x(cards[i].card, target_x);
+            lv_obj_set_y(cards[i].card, SCREEN_CY - target_size / 2);
             lv_obj_set_style_opa(cards[i].card, target_opa, 0);
 
             bool show = (diff == 0);
@@ -377,20 +396,16 @@ static void update_focus(bool immediate)
                 else
                     lv_label_set_text(cards[i].lbl_icon, LV_SYMBOL_PLUS);
             }
-        } else {
-            cards[i].target_x    = target_x;
-            cards[i].target_size = target_size;
-            cards[i].target_opa  = target_opa;
         }
     }
 
     update_card_border();
     update_action_highlight();
 
-    if (!immediate && anim_timer)
+    if (!immediate && anim_timer) {
         lv_timer_resume(anim_timer);
+    }
 }
-
 void screen_timer_presets_encoder_event(lv_indev_data_t *data)
 {
     if (total_cards == 0) return;
@@ -457,6 +472,7 @@ void screen_timer_presets_encoder_event(lv_indev_data_t *data)
                 action_idx = ACTION_PLAY;
                 update_action_highlight();
             } else {
+                app_state_get()->active_preset_id = -1;
                 ui_manager_switch_screen(SCREEN_TIMER_EDIT);
             }
         }
@@ -465,12 +481,20 @@ void screen_timer_presets_encoder_event(lv_indev_data_t *data)
 
 lv_obj_t *screen_timer_presets_create(void)
 {
+    if (anim_timer) {
+        lv_timer_del(anim_timer);
+        anim_timer = NULL;
+    }
+    if (screen) {
+        lv_obj_del(screen);
+    }
+
     timer_store_init();
     preset_count = timer_store_count();
     total_cards  = preset_count + 1;
 
     screen = lv_obj_create(NULL);
-    lv_obj_set_style_bg_color(screen, LV_COLOR_BG, 0);
+    lv_obj_set_style_bg_color(screen, pastel_color(theme_accent(SCREEN_TIMER_PRESETS)), 0);
     lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
 
     lbl_title = lv_label_create(screen);

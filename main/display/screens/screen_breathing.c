@@ -1,6 +1,6 @@
 #include "screen_breathing.h"
 #include "ui_manager.h"
-#include "studybud_theme.h"
+#include "color_palette.h"
 #include "../utils/session_store.h"
 #include "../app_state.h"
 #include "esp_log.h"
@@ -55,6 +55,8 @@ static lv_obj_t *lbl_counter;
 static lv_obj_t *lbl_result;
 static lv_obj_t *btn_home;
 static lv_obj_t *btn_restart;
+static lv_obj_t *lbl_home;
+static lv_obj_t *lbl_restart;
 
 /* --- State --- */
 static int cycle_limit = 3;
@@ -63,6 +65,7 @@ static bool cycles_edit_mode = false;
 static int focus_index = 0;
 static int prev_focus_index = -1;
 static bool current_inhale = true;
+static uint32_t current_hold_ms = HOLD_MS;
 
 /* --- Input tracking --- */
 static uint32_t pr_tick = 0;
@@ -121,8 +124,8 @@ static void anim_set_zoom(void *var, int32_t val)
 
 static void anim_set_color_blend(void *var, int32_t val)
 {
-    lv_color_t from = LV_COLOR_BREATHING;
-    lv_color_t to   = LV_COLOR_INFO;
+    lv_color_t from = theme_accent(SCREEN_BREATHING);
+    lv_color_t to   = theme_accent_light(SCREEN_BREATHING);
     lv_color_t c = lv_color_mix(to, from, (uint8_t)val);
     lv_obj_set_style_bg_color((lv_obj_t *)var, c, 0);
 }
@@ -135,6 +138,16 @@ static void update_cycles_text(void)
     char buf[24];
     snprintf(buf, sizeof(buf), "Cycles   %d", cycle_limit);
     lv_label_set_text(lbl_cycles_text, buf);
+}
+
+static exercise_t *selected_exercise(void)
+{
+    app_state_t *st = app_state_get();
+    if (st->exercise_count <= 0) return NULL;
+    for (int i = 0; i < st->exercise_count; i++) {
+        if (st->exercises[i].id == st->breathing_exercise_id) return &st->exercises[i];
+    }
+    return &st->exercises[0];
 }
 
 /* ============================================================
@@ -163,7 +176,12 @@ static void breath_motion_ready_cb(lv_anim_t *a)
     (void)a;
     if (current_state != STATE_ACTIVE) return;
 
-    lv_timer_t *t = lv_timer_create(breath_hold_cb, HOLD_MS, NULL);
+    if (current_hold_ms == 0) {
+        breath_hold_cb(NULL);
+        return;
+    }
+    lv_label_set_text(lbl_badge_text, "HOLD");
+    lv_timer_t *t = lv_timer_create(breath_hold_cb, current_hold_ms, NULL);
     t->repeat_count = 1;
 }
 
@@ -175,6 +193,17 @@ static void start_breath_phase(bool inhale)
     lv_anim_del(badge, NULL);
     lv_label_set_text(lbl_badge_text, inhale ? "IN" : "OUT");
 
+    uint32_t motion_ms = MOTION_MS;
+    exercise_t *ex = selected_exercise();
+    if (ex) {
+        motion_ms = inhale ? (uint32_t)ex->inhale_ms : (uint32_t)ex->exhale_ms;
+        uint32_t hold = inhale ? (uint32_t)ex->hold_ms
+                               : (uint32_t)(ex->hold2_ms > 0 ? ex->hold2_ms : 0);
+        current_hold_ms = hold > 0 ? hold : 0;
+    } else {
+        current_hold_ms = HOLD_MS;
+    }
+
     int32_t from_w = inhale ? 0 : BADGE_EXPAND;
     int32_t to_w   = inhale ? BADGE_EXPAND : 0;
 
@@ -183,7 +212,7 @@ static void start_breath_phase(bool inhale)
     lv_anim_set_var(&a, badge);
     lv_anim_set_exec_cb(&a, anim_set_width);
     lv_anim_set_values(&a, from_w, to_w);
-    lv_anim_set_time(&a, MOTION_MS);
+    lv_anim_set_time(&a, motion_ms);
     lv_anim_set_path_cb(&a, inhale ? lv_anim_path_ease_out : lv_anim_path_ease_in);
     lv_anim_set_ready_cb(&a, breath_motion_ready_cb);
     lv_anim_start(&a);
@@ -193,7 +222,7 @@ static void start_breath_phase(bool inhale)
     lv_anim_set_var(&a2, badge);
     lv_anim_set_exec_cb(&a2, anim_set_height);
     lv_anim_set_values(&a2, from_w, to_w);
-    lv_anim_set_time(&a2, MOTION_MS);
+    lv_anim_set_time(&a2, motion_ms);
     lv_anim_set_path_cb(&a2, inhale ? lv_anim_path_ease_out : lv_anim_path_ease_in);
     lv_anim_start(&a2);
 
@@ -249,6 +278,7 @@ static void transition_to_active(void)
     current_state = STATE_ACTIVE;
     cycle_count = 0;
     app_state_get()->breathing_active = true;
+    app_state_broadcast_breathing_sync();
 
     lv_obj_add_flag(lbl_inst_count, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(lbl_inst_moment, LV_OBJ_FLAG_HIDDEN);
@@ -265,7 +295,7 @@ static void transition_to_active(void)
     lv_label_set_text_fmt(lbl_counter, "%d", cycle_count);
     lv_obj_set_style_transform_width(badge, 0, 0);
     lv_obj_set_style_transform_height(badge, 0, 0);
-    lv_obj_set_style_bg_color(badge, LV_COLOR_BREATHING, 0);
+    lv_obj_set_style_bg_color(badge, theme_accent(SCREEN_BREATHING), 0);
 
     start_breath_phase(true);
     app_state_broadcast_screen_change(SCREEN_BREATHING);
@@ -276,6 +306,8 @@ static void transition_to_complete(void)
 {
     current_state = STATE_COMPLETE;
     app_state_get()->breathing_active = false;
+    app_state_broadcast_breathing_sync();
+    app_state_broadcast_breathing_complete(cycle_count);
 
     lv_anim_del(badge, NULL);
     lv_obj_add_flag(badge, LV_OBJ_FLAG_HIDDEN);
@@ -336,6 +368,7 @@ static void reset_to_selection(void)
     cycles_edit_mode = false;
     current_state = STATE_SELECTION;
     app_state_get()->breathing_active = false;
+    app_state_broadcast_breathing_sync();
 
     update_cycles_text();
     update_focus_styles();
@@ -361,11 +394,11 @@ static void update_focus_styles(void)
             prev_focus_index = focus_index;
         }
 
-        lv_obj_set_style_border_color(btn_begin, LV_COLOR_PRIMARY_LIGHT, 0);
-        lv_obj_set_style_border_color(btn_cycles, LV_COLOR_PRIMARY_LIGHT, 0);
+        lv_obj_set_style_border_color(btn_begin, theme_accent_light(SCREEN_BREATHING), 0);
+        lv_obj_set_style_border_color(btn_cycles, theme_accent_light(SCREEN_BREATHING), 0);
 
         if (cycles_edit_mode) {
-            lv_obj_set_style_border_color(btn_cycles, LV_COLOR_PRIMARY_LIGHT, 0);
+            lv_obj_set_style_border_color(btn_cycles, theme_accent_light(SCREEN_BREATHING), 0);
             lv_obj_set_style_border_width(btn_cycles, 3, 0);
         }
     } else if (current_state == STATE_COMPLETE) {
@@ -373,16 +406,26 @@ static void update_focus_styles(void)
             lv_obj_t *focused = (focus_index == 0) ? btn_home : btn_restart;
             lv_obj_t *defocused = (focus_index == 0) ? btn_restart : btn_home;
 
-            lv_obj_set_style_bg_color(focused, LV_COLOR_PRIMARY_LIGHT, 0);
-            lv_obj_set_style_bg_color(defocused, LV_COLOR_PRIMARY_DARK, 0);
+            lv_obj_set_style_bg_color(focused, theme_accent_light(SCREEN_BREATHING), 0);
+            lv_obj_set_style_bg_color(defocused, theme_accent_dark(SCREEN_BREATHING), 0);
+
+            lv_color_t focused_tc = contrast_text_color(theme_accent_light(SCREEN_BREATHING));
+            lv_color_t defocused_tc = contrast_text_color(theme_accent_dark(SCREEN_BREATHING));
+            if (focus_index == 0) {
+                lv_obj_set_style_text_color(lbl_home, focused_tc, 0);
+                lv_obj_set_style_text_color(lbl_restart, defocused_tc, 0);
+            } else {
+                lv_obj_set_style_text_color(lbl_home, defocused_tc, 0);
+                lv_obj_set_style_text_color(lbl_restart, focused_tc, 0);
+            }
 
             animate_style(focused, (lv_anim_exec_xcb_t)anim_set_border_width,
                           0, 3, FOCUS_ANIM_MS, 0);
             animate_style(defocused, (lv_anim_exec_xcb_t)anim_set_border_width,
                           3, 0, FOCUS_ANIM_MS, 0);
 
-            lv_obj_set_style_border_color(focused, LV_COLOR_PRIMARY_LIGHT, 0);
-            lv_obj_set_style_border_color(defocused, LV_COLOR_PRIMARY_DARK, 0);
+            lv_obj_set_style_border_color(focused, theme_accent_light(SCREEN_BREATHING), 0);
+            lv_obj_set_style_border_color(defocused, theme_accent_dark(SCREEN_BREATHING), 0);
 
             prev_focus_index = focus_index;
         }
@@ -413,7 +456,7 @@ static void animate_style(lv_obj_t *obj, lv_anim_exec_xcb_t exec_cb,
 lv_obj_t *screen_breathing_create(void)
 {
     screen = lv_obj_create(NULL);
-    lv_obj_set_style_bg_color(screen, LV_COLOR_BG, 0);
+    lv_obj_set_style_bg_color(screen, pastel_color(theme_accent(SCREEN_BREATHING)), 0);
     lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
 
     /* ---- State A: Selection ---- */
@@ -428,16 +471,16 @@ lv_obj_t *screen_breathing_create(void)
     lv_obj_set_size(btn_begin, 280, 280);
     lv_obj_align(btn_begin, LV_ALIGN_CENTER, 0, -35);
     lv_obj_set_style_radius(btn_begin, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(btn_begin, LV_COLOR_PRIMARY, 0);
+    lv_obj_set_style_bg_color(btn_begin, theme_accent(SCREEN_BREATHING), 0);
     lv_obj_set_style_shadow_width(btn_begin, 0, 0);
     lv_obj_set_style_shadow_opa(btn_begin, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(btn_begin, 0, 0);
-    lv_obj_set_style_border_color(btn_begin, LV_COLOR_PRIMARY_LIGHT, 0);
+    lv_obj_set_style_border_color(btn_begin, theme_accent_light(SCREEN_BREATHING), 0);
     lv_obj_set_style_pad_all(btn_begin, 0, 0);
     lv_obj_t *lbl_begin = lv_label_create(btn_begin);
     lv_label_set_text(lbl_begin, "BEGIN");
     lv_obj_set_style_text_font(lbl_begin, &lv_font_montserrat_28, 0);
-    lv_obj_set_style_text_color(lbl_begin, LV_COLOR_BG_CARD, 0);
+    lv_obj_set_style_text_color(lbl_begin, contrast_text_color(theme_accent(SCREEN_BREATHING)), 0);
     lv_obj_center(lbl_begin);
 
     /* Cycles capsule button — 150×50, text inside */
@@ -445,17 +488,17 @@ lv_obj_t *screen_breathing_create(void)
     lv_obj_set_size(btn_cycles, 150, 50);
     lv_obj_align(btn_cycles, LV_ALIGN_CENTER, 0, 165);
     lv_obj_set_style_radius(btn_cycles, 25, 0);
-    lv_obj_set_style_bg_color(btn_cycles, LV_COLOR_PRIMARY_DARK, 0);
+    lv_obj_set_style_bg_color(btn_cycles, theme_accent_dark(SCREEN_BREATHING), 0);
     lv_obj_set_style_shadow_width(btn_cycles, 0, 0);
     lv_obj_set_style_shadow_opa(btn_cycles, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(btn_cycles, 0, 0);
-    lv_obj_set_style_border_color(btn_cycles, LV_COLOR_PRIMARY_LIGHT, 0);
+    lv_obj_set_style_border_color(btn_cycles, theme_accent_light(SCREEN_BREATHING), 0);
     lv_obj_set_style_pad_all(btn_cycles, 0, 0);
 
     lbl_cycles_text = lv_label_create(btn_cycles);
     lv_label_set_text(lbl_cycles_text, "Cycles   3");
     lv_obj_set_style_text_font(lbl_cycles_text, &lv_font_montserrat_16, 0);
-    lv_obj_set_style_text_color(lbl_cycles_text, LV_COLOR_BG_CARD, 0);
+    lv_obj_set_style_text_color(lbl_cycles_text, contrast_text_color(theme_accent_dark(SCREEN_BREATHING)), 0);
     lv_obj_center(lbl_cycles_text);
 
     /* ---- State B: Instruction ---- */
@@ -483,7 +526,7 @@ lv_obj_t *screen_breathing_create(void)
     lbl_inst_press = lv_label_create(screen);
     lv_label_set_text(lbl_inst_press, "Press encoder dial to begin...");
     lv_obj_set_style_text_font(lbl_inst_press, &lv_font_montserrat_14, 0);
-    lv_obj_set_style_text_color(lbl_inst_press, LV_COLOR_PRIMARY, 0);
+    lv_obj_set_style_text_color(lbl_inst_press, theme_accent(SCREEN_BREATHING), 0);
     lv_obj_align(lbl_inst_press, LV_ALIGN_CENTER, 0, 70);
     lv_obj_add_flag(lbl_inst_press, LV_OBJ_FLAG_HIDDEN);
 
@@ -503,7 +546,7 @@ lv_obj_t *screen_breathing_create(void)
     lv_obj_set_size(badge, BADGE_BASE_SIZE, BADGE_BASE_SIZE);
     lv_obj_align(badge, LV_ALIGN_CENTER, 0, 0);
     lv_obj_set_style_radius(badge, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(badge, LV_COLOR_BREATHING, 0);
+    lv_obj_set_style_bg_color(badge, theme_accent(SCREEN_BREATHING), 0);
     lv_obj_set_style_bg_opa(badge, 200, 0);
     lv_obj_set_style_border_width(badge, 0, 0);
     lv_obj_set_style_shadow_width(badge, 0, 0);
@@ -514,7 +557,7 @@ lv_obj_t *screen_breathing_create(void)
     lbl_badge_text = lv_label_create(badge);
     lv_label_set_text(lbl_badge_text, "IN");
     lv_obj_set_style_text_font(lbl_badge_text, &lv_font_montserrat_20, 0);
-    lv_obj_set_style_text_color(lbl_badge_text, LV_COLOR_BG_CARD, 0);
+    lv_obj_set_style_text_color(lbl_badge_text, contrast_text_color(theme_accent(SCREEN_BREATHING)), 0);
     lv_obj_center(lbl_badge_text);
     lv_obj_add_flag(lbl_badge_text, LV_OBJ_FLAG_HIDDEN);
 
@@ -530,14 +573,14 @@ lv_obj_t *screen_breathing_create(void)
     lv_obj_set_size(btn_home, 160, 40);
     lv_obj_align(btn_home, LV_ALIGN_CENTER, 0, 10);
     lv_obj_set_style_radius(btn_home, 12, 0);
-    lv_obj_set_style_bg_color(btn_home, LV_COLOR_PRIMARY, 0);
+    lv_obj_set_style_bg_color(btn_home, theme_accent(SCREEN_BREATHING), 0);
     lv_obj_set_style_shadow_width(btn_home, 0, 0);
     lv_obj_set_style_border_width(btn_home, 0, 0);
-    lv_obj_set_style_border_color(btn_home, LV_COLOR_PRIMARY_LIGHT, 0);
-    lv_obj_t *lbl_home = lv_label_create(btn_home);
+    lv_obj_set_style_border_color(btn_home, theme_accent_light(SCREEN_BREATHING), 0);
+    lbl_home = lv_label_create(btn_home);
     lv_label_set_text(lbl_home, "Home");
     lv_obj_set_style_text_font(lbl_home, &lv_font_montserrat_16, 0);
-    lv_obj_set_style_text_color(lbl_home, LV_COLOR_BG_CARD, 0);
+    lv_obj_set_style_text_color(lbl_home, contrast_text_color(theme_accent(SCREEN_BREATHING)), 0);
     lv_obj_center(lbl_home);
     lv_obj_add_flag(btn_home, LV_OBJ_FLAG_HIDDEN);
 
@@ -545,14 +588,14 @@ lv_obj_t *screen_breathing_create(void)
     lv_obj_set_size(btn_restart, 160, 40);
     lv_obj_align(btn_restart, LV_ALIGN_CENTER, 0, 60);
     lv_obj_set_style_radius(btn_restart, 12, 0);
-    lv_obj_set_style_bg_color(btn_restart, LV_COLOR_PRIMARY_DARK, 0);
+    lv_obj_set_style_bg_color(btn_restart, theme_accent_dark(SCREEN_BREATHING), 0);
     lv_obj_set_style_shadow_width(btn_restart, 0, 0);
     lv_obj_set_style_border_width(btn_restart, 0, 0);
-    lv_obj_set_style_border_color(btn_restart, LV_COLOR_PRIMARY_LIGHT, 0);
-    lv_obj_t *lbl_restart = lv_label_create(btn_restart);
+    lv_obj_set_style_border_color(btn_restart, theme_accent_light(SCREEN_BREATHING), 0);
+    lbl_restart = lv_label_create(btn_restart);
     lv_label_set_text(lbl_restart, "Restart Exercise");
     lv_obj_set_style_text_font(lbl_restart, &lv_font_montserrat_14, 0);
-    lv_obj_set_style_text_color(lbl_restart, LV_COLOR_BG_CARD, 0);
+    lv_obj_set_style_text_color(lbl_restart, contrast_text_color(theme_accent_dark(SCREEN_BREATHING)), 0);
     lv_obj_center(lbl_restart);
     lv_obj_add_flag(btn_restart, LV_OBJ_FLAG_HIDDEN);
 

@@ -20,6 +20,7 @@ typedef enum {
     SCREEN_BACKGROUNDS,
     SCREEN_NOTIFICATIONS,
     SCREEN_SLEEP,
+    SCREEN_TAMAGOTCHI,
     SCREEN_COUNT
 } screen_id_t;
 

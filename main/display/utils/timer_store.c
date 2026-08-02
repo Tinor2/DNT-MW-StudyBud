@@ -1,5 +1,6 @@
 #include "timer_store.h"
 #include "../app_state.h"
+#include "persistence.h"
 #include <string.h>
 #include "esp_log.h"
 
@@ -16,7 +17,7 @@ static void preset_to_timer(const preset_t *src, timer_preset_t *dst)
     dst->type = src->is_pomodoro ? TIMER_TYPE_POMODORO : TIMER_TYPE_STANDARD;
     dst->session_sec = src->focus_ms / 1000;
     dst->short_break_sec = src->break_ms / 1000;
-    dst->long_break_sec = src->is_pomodoro ? (src->break_ms * 3 / 1000) : (src->break_ms / 1000);
+    dst->long_break_sec = src->is_pomodoro ? (src->break_ms * 3 / 1000) : 0;
     dst->duration_sec = src->focus_ms / 1000;
     dst->is_default_pomodoro = false;
 }
@@ -27,8 +28,13 @@ static void timer_to_preset(const timer_preset_t *src, preset_t *dst)
     strncpy(dst->name, src->name, MAX_NAME_LEN - 1);
     dst->name[MAX_NAME_LEN - 1] = '\0';
     dst->is_pomodoro = (src->type == TIMER_TYPE_POMODORO);
-    dst->focus_ms = src->session_sec * 1000;
-    dst->break_ms = src->short_break_sec * 1000;
+    if (src->type == TIMER_TYPE_POMODORO) {
+        dst->focus_ms = src->session_sec * 1000;
+        dst->break_ms = src->short_break_sec * 1000;
+    } else {
+        dst->focus_ms = src->duration_sec * 1000;
+        dst->break_ms = 0;
+    }
 }
 
 static void rebuild_cache(void)
@@ -76,6 +82,7 @@ int timer_store_add(const timer_preset_t *preset)
     state->preset_count++;
     preset_to_timer(p, &s_cache[state->preset_count - 1]);
     s_count = state->preset_count;
+    persistence_mark_dirty();
     ESP_LOGI(TAG, "Added preset '%s' (id=%d), total=%d", p->name, p->id, s_count);
     return p->id;
 }
@@ -89,6 +96,7 @@ void timer_store_update(int id, const timer_preset_t *preset)
             timer_to_preset(preset, &state->presets[i]);
             state->presets[i].id = saved_id;
             preset_to_timer(&state->presets[i], &s_cache[i]);
+            persistence_mark_dirty();
             ESP_LOGI(TAG, "Updated preset id=%d", id);
             return;
         }
@@ -106,6 +114,7 @@ void timer_store_delete(int id)
             }
             state->preset_count--;
             s_count = state->preset_count;
+            persistence_mark_dirty();
             ESP_LOGI(TAG, "Deleted preset id=%d, remaining=%d", id, s_count);
             return;
         }

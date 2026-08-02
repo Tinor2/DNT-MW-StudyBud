@@ -16,3 +16,8 @@ void session_store_increment_breath_count(void)
 {
     breath_count++;
 }
+
+void session_store_set_breath_count(int count)
+{
+    breath_count = count;
+}

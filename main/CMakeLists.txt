@@ -13,16 +13,25 @@ idf_component_register(
         "display/screens/screen_timer_presets.c"
         "display/screens/screen_timer_edit.c"
         "display/screens/screen_timer.c"
+        "display/screens/screen_tamagotchi.c"
+        "display/screens/screen_water.c"
+        "display/screens/screen_settings.c"
         "assets/idle_bg_tree.c"
         "assets/app_logo.c"
         "assets/todo_logo.c"
         "assets/timer_logo.c"
+        "assets/breathing_logo.c"
+        "assets/sleeping_logo.c"
+        "assets/tamagotchi_logo.c"
         "display/utils/session_store.c"
         "networking/wifi_manager.c"
         "networking/web_server.c"
         "networking/app_state.c"
         "display/utils/sleep_store.c"
         "display/utils/timer_store.c"
+        "display/utils/points_store.c"
+        "display/utils/sd_card.c"
+        "display/utils/persistence.c"
     INCLUDE_DIRS
         "."
         "display"
@@ -39,6 +48,8 @@ idf_component_register(
         esp_http_server
         nvs_flash
         esp_netif
+        fatfs
+        sdmmc
     PRIV_REQUIRES
         driver
         esp_driver_gpio

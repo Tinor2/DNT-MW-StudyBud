@@ -216,6 +216,30 @@ Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/app_logo.c.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/app_logo.c.s
 .PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/app_logo.c.s
 
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/breathing_logo.o: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/breathing_logo.c.o
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/breathing_logo.o
+
+# target to build an object file
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/breathing_logo.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/breathing_logo.c.o
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/breathing_logo.c.o
+
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/breathing_logo.i: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/breathing_logo.c.i
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/breathing_logo.i
+
+# target to preprocess a source file
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/breathing_logo.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/breathing_logo.c.i
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/breathing_logo.c.i
+
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/breathing_logo.s: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/breathing_logo.c.s
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/breathing_logo.s
+
+# target to generate assembly for a file
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/breathing_logo.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/breathing_logo.c.s
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/breathing_logo.c.s
+
 Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/idle_bg_tree.o: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/idle_bg_tree.c.o
 .PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/idle_bg_tree.o
 
@@ -239,6 +263,54 @@ Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/idle_bg_tree.s: Users/ro
 Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/idle_bg_tree.c.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/idle_bg_tree.c.s
 .PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/idle_bg_tree.c.s
+
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/tamagotchi_logo.o: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/tamagotchi_logo.c.o
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/tamagotchi_logo.o
+
+# target to build an object file
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/tamagotchi_logo.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/tamagotchi_logo.c.o
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/tamagotchi_logo.c.o
+
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/tamagotchi_logo.i: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/tamagotchi_logo.c.i
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/tamagotchi_logo.i
+
+# target to preprocess a source file
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/tamagotchi_logo.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/tamagotchi_logo.c.i
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/tamagotchi_logo.c.i
+
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/tamagotchi_logo.s: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/tamagotchi_logo.c.s
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/tamagotchi_logo.s
+
+# target to generate assembly for a file
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/tamagotchi_logo.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/tamagotchi_logo.c.s
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/tamagotchi_logo.c.s
+
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/timer_logo.o: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/timer_logo.c.o
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/timer_logo.o
+
+# target to build an object file
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/timer_logo.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/timer_logo.c.o
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/timer_logo.c.o
+
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/timer_logo.i: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/timer_logo.c.i
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/timer_logo.i
+
+# target to preprocess a source file
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/timer_logo.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/timer_logo.c.i
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/timer_logo.c.i
+
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/timer_logo.s: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/timer_logo.c.s
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/timer_logo.s
+
+# target to generate assembly for a file
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/timer_logo.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/timer_logo.c.s
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/timer_logo.c.s
 
 Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/todo_logo.o: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/todo_logo.c.o
 .PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/todo_logo.o
@@ -408,6 +480,30 @@ Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_sleep.c.
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_sleep.c.s
 .PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_sleep.c.s
 
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_tamagotchi.o: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_tamagotchi.c.o
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_tamagotchi.o
+
+# target to build an object file
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_tamagotchi.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_tamagotchi.c.o
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_tamagotchi.c.o
+
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_tamagotchi.i: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_tamagotchi.c.i
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_tamagotchi.i
+
+# target to preprocess a source file
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_tamagotchi.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_tamagotchi.c.i
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_tamagotchi.c.i
+
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_tamagotchi.s: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_tamagotchi.c.s
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_tamagotchi.s
+
+# target to generate assembly for a file
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_tamagotchi.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_tamagotchi.c.s
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_tamagotchi.c.s
+
 Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_timer.o: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_timer.c.o
 .PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_timer.o
 
@@ -504,6 +600,30 @@ Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_todos.c.
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_todos.c.s
 .PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_todos.c.s
 
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_water.o: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_water.c.o
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_water.o
+
+# target to build an object file
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_water.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_water.c.o
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_water.c.o
+
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_water.i: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_water.c.i
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_water.i
+
+# target to preprocess a source file
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_water.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_water.c.i
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_water.c.i
+
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_water.s: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_water.c.s
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_water.s
+
+# target to generate assembly for a file
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_water.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_water.c.s
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_water.c.s
+
 Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/ui_manager.o: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/ui_manager.c.o
 .PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/ui_manager.o
 
@@ -527,6 +647,30 @@ Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/ui_manager.s: Users/ron
 Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/ui_manager.c.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/ui_manager.c.s
 .PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/ui_manager.c.s
+
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/points_store.o: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/points_store.c.o
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/points_store.o
+
+# target to build an object file
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/points_store.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/points_store.c.o
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/points_store.c.o
+
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/points_store.i: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/points_store.c.i
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/points_store.i
+
+# target to preprocess a source file
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/points_store.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/points_store.c.i
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/points_store.c.i
+
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/points_store.s: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/points_store.c.s
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/points_store.s
+
+# target to generate assembly for a file
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/points_store.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/points_store.c.s
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/points_store.c.s
 
 Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/session_store.o: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/session_store.c.o
 .PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/session_store.o
@@ -4656,6 +4800,30 @@ main.c.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_sim.dir/build.make CMakeFiles/studybud_sim.dir/main.c.s
 .PHONY : main.c.s
 
+persistence_sim.o: persistence_sim.c.o
+.PHONY : persistence_sim.o
+
+# target to build an object file
+persistence_sim.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/persistence_sim.c.o
+.PHONY : persistence_sim.c.o
+
+persistence_sim.i: persistence_sim.c.i
+.PHONY : persistence_sim.i
+
+# target to preprocess a source file
+persistence_sim.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/persistence_sim.c.i
+.PHONY : persistence_sim.c.i
+
+persistence_sim.s: persistence_sim.c.s
+.PHONY : persistence_sim.s
+
+# target to generate assembly for a file
+persistence_sim.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/persistence_sim.c.s
+.PHONY : persistence_sim.c.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -4674,9 +4842,18 @@ help:
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/app_logo.o"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/app_logo.i"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/app_logo.s"
+	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/breathing_logo.o"
+	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/breathing_logo.i"
+	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/breathing_logo.s"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/idle_bg_tree.o"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/idle_bg_tree.i"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/idle_bg_tree.s"
+	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/tamagotchi_logo.o"
+	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/tamagotchi_logo.i"
+	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/tamagotchi_logo.s"
+	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/timer_logo.o"
+	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/timer_logo.i"
+	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/timer_logo.s"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/todo_logo.o"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/todo_logo.i"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/todo_logo.s"
@@ -4698,6 +4875,9 @@ help:
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_sleep.o"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_sleep.i"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_sleep.s"
+	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_tamagotchi.o"
+	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_tamagotchi.i"
+	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_tamagotchi.s"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_timer.o"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_timer.i"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_timer.s"
@@ -4710,9 +4890,15 @@ help:
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_todos.o"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_todos.i"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_todos.s"
+	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_water.o"
+	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_water.i"
+	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_water.s"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/ui_manager.o"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/ui_manager.i"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/ui_manager.s"
+	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/points_store.o"
+	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/points_store.i"
+	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/points_store.s"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/session_store.o"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/session_store.i"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/session_store.s"
@@ -5229,6 +5415,9 @@ help:
 	@echo "... main.o"
 	@echo "... main.i"
 	@echo "... main.s"
+	@echo "... persistence_sim.o"
+	@echo "... persistence_sim.i"
+	@echo "... persistence_sim.s"
 .PHONY : help
 
 
