@@ -28,6 +28,7 @@ void ui_manager_init(void);
 void ui_manager_switch_screen(screen_id_t screen);
 void ui_manager_encoder_event(lv_indev_data_t *data);
 screen_id_t ui_manager_get_current_screen(void);
+void ui_manager_set_reading_light(int strength);
 
 #ifdef __cplusplus
 }

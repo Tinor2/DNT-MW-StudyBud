@@ -118,6 +118,17 @@ body {
   transition: background 0.3s ease, color 0.3s ease;
 }
 
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background: #ffa93d;
+  opacity: var(--reading-light-opacity, 0);
+  transition: opacity 0.3s ease;
+}
+
 button {
   font-family: var(--font-family);
   cursor: pointer;
@@ -161,17 +172,17 @@ a:hover {
  *  Utility Classes
  * ============================================================ */
 .card {
+  position: relative;
   background: var(--color-bg-card);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   box-shadow: var(--shadow-sm);
   padding: 1rem;
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  transition: box-shadow 0.2s ease;
 }
 
 .card:hover {
   box-shadow: var(--shadow-md);
-  transform: scale(1.02);
 }
 
 .btn {

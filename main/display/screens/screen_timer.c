@@ -14,7 +14,7 @@ static const char *TAG = "Screen_Timer";
 #define FOCUS_ANIM_MS 200
 #define BTN_SIZE      60
 #define BTN_GAP       100
-#define BTN_ROW_Y     -30
+#define BTN_ROW_Y     -60
 
 #define ARC_START_ANGLE 135
 #define ARC_END_ANGLE   405

@@ -34,6 +34,7 @@
 #define LV_COLOR_INFO           lv_color_hex(0x5FAF8B)
 
 /* === FEATURE ACCENTS === */
+#define LV_COLOR_TAMAGOTCHI     lv_color_make(0x4B, 0xBC, 0x33) /* plant green base (RGB 75, 188, 51) */
 #define LV_COLOR_TIMER          lv_color_hex(0xE0A84C)
 #define LV_COLOR_TIMER_BREAK    lv_color_hex(0x5FAF8B)
 #define LV_COLOR_WATER          lv_color_hex(0x5FAF8B)

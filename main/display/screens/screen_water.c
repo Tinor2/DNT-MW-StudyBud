@@ -29,6 +29,8 @@ static lv_obj_t *bar_progress = NULL;
 static lv_obj_t *btn_minus = NULL;
 static lv_obj_t *btn_plus = NULL;
 static lv_obj_t *btn_goal = NULL;
+static lv_obj_t *lbl_celebrate = NULL;
+static lv_timer_t *celebrate_timer = NULL;
 
 static void anim_set_opa(void *var, int32_t val)
 {
@@ -78,6 +80,34 @@ static void animate_bar_to(lv_obj_t *bar, int32_t to)
     lv_anim_start(&a);
 }
 
+static void celebrate_hide(void)
+{
+    if (celebrate_timer) {
+        lv_timer_del(celebrate_timer);
+        celebrate_timer = NULL;
+    }
+    if (lbl_celebrate) lv_obj_add_flag(lbl_celebrate, LV_OBJ_FLAG_HIDDEN);
+}
+
+static void celebrate_timer_cb(lv_timer_t *t)
+{
+    (void)t;
+    celebrate_hide();
+}
+
+static void celebrate_show(void)
+{
+    if (!lbl_celebrate) return;
+    lv_obj_clear_flag(lbl_celebrate, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_style_opa(lbl_celebrate, LV_OPA_TRANSP, 0);
+    animate_style(lbl_celebrate, (lv_anim_exec_xcb_t)anim_set_opa,
+                  LV_OPA_TRANSP, LV_OPA_COVER, 350, 0);
+
+    if (celebrate_timer) lv_timer_del(celebrate_timer);
+    celebrate_timer = lv_timer_create(celebrate_timer_cb, 2500, NULL);
+    lv_timer_set_repeat_count(celebrate_timer, 1);
+}
+
 static void refresh_water(void)
 {
     app_state_t *state = app_state_get();
@@ -103,10 +133,14 @@ static void refresh_water(void)
 static void water_add(void)
 {
     app_state_t *state = app_state_get();
+    int old = state->water.glasses;
     state->water.glasses++;
     refresh_water();
     app_state_broadcast_water_sync();
     persistence_mark_dirty();
+    if (state->water.goal > 0 && old < state->water.goal && state->water.glasses >= state->water.goal) {
+        celebrate_show();
+    }
     ESP_LOGI(TAG, "Water +1 -> %d", state->water.glasses);
 }
 
@@ -210,6 +244,13 @@ lv_obj_t *screen_water_create(void)
     lv_obj_set_style_text_color(lbl_status, LV_COLOR_TEXT_SECONDARY, 0);
     lv_obj_align(lbl_status, LV_ALIGN_CENTER, 0, -10);
 
+    lbl_celebrate = lv_label_create(screen);
+    lv_label_set_text(lbl_celebrate, "Goal reached!");
+    lv_obj_set_style_text_font(lbl_celebrate, &lv_font_montserrat_20, 0);
+    lv_obj_set_style_text_color(lbl_celebrate, LV_COLOR_SUCCESS, 0);
+    lv_obj_align(lbl_celebrate, LV_ALIGN_CENTER, 0, 15);
+    lv_obj_add_flag(lbl_celebrate, LV_OBJ_FLAG_HIDDEN);
+
     bar_progress = lv_bar_create(screen);
     lv_obj_set_size(bar_progress, 320, 24);
     lv_obj_align(bar_progress, LV_ALIGN_CENTER, 0, 40);
@@ -221,12 +262,12 @@ lv_obj_t *screen_water_create(void)
     lv_obj_set_style_bg_color(bar_progress, LV_COLOR_WATER, LV_PART_INDICATOR);
     lv_obj_set_style_radius(bar_progress, 10, LV_PART_INDICATOR);
 
-    make_button(&btn_minus, LV_SYMBOL_MINUS, -90, 150, 70, 70);
-    make_button(&btn_plus, LV_SYMBOL_PLUS, 90, 150, 70, 70);
+    make_button(&btn_minus, LV_SYMBOL_MINUS, -90, 120, 50, 50);
+    make_button(&btn_plus, LV_SYMBOL_PLUS, 90, 120, 50, 50);
 
     btn_goal = lv_btn_create(screen);
     lv_obj_set_size(btn_goal, 160, 46);
-    lv_obj_align(btn_goal, LV_ALIGN_CENTER, 0, 195);
+    lv_obj_align(btn_goal, LV_ALIGN_CENTER, 0, 165);
     lv_obj_set_style_radius(btn_goal, 23, 0);
     lv_obj_set_style_bg_color(btn_goal, LV_COLOR_PRIMARY_DARK, 0);
     lv_obj_set_style_shadow_width(btn_goal, 0, 0);

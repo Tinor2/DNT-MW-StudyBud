@@ -16,10 +16,10 @@ static const char *TAG = "wifi_mgr";
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT      BIT1
 
-#define MAX_RETRY 10
+#define MAX_RETRY_PER_NETWORK 5
+#define CONNECT_TIMEOUT_MS    15000
 
 static EventGroupHandle_t s_wifi_event_group;
-static int s_retry_count = 0;
 static esp_netif_t *s_sta_netif = NULL;
 static esp_ip4_addr_t s_ip_addr;
 static bool s_connected = false;
@@ -27,32 +27,37 @@ static bool s_connected = false;
 static void wifi_event_handler(void *arg, esp_event_base_t event_base,
                                int32_t event_id, void *event_data)
 {
-    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
-        esp_wifi_connect();
-    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
-        wifi_event_sta_disconnected_t *disconn = (wifi_event_sta_disconnected_t *)event_data;
+    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
         s_connected = false;
-        ESP_LOGW(TAG, "Disconnected, reason=%d", disconn->reason);
-        if (s_retry_count < MAX_RETRY) {
-            esp_wifi_connect();
-            s_retry_count++;
-            ESP_LOGW(TAG, "Reconnecting... attempt %d/%d", s_retry_count, MAX_RETRY);
-        } else {
-            xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
-            ESP_LOGE(TAG, "Failed to connect after %d attempts", MAX_RETRY);
-        }
+        xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
         s_ip_addr = event->ip_info.ip;
         s_connected = true;
-        s_retry_count = 0;
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
         ESP_LOGI(TAG, "Connected! IP: " IPSTR, IP2STR(&s_ip_addr));
     }
 }
 
-esp_err_t wifi_manager_init(const char *ssid, const char *password)
+static void start_sntp(void)
 {
+    setenv("TZ", CONFIG_STUDYBUD_TIMEZONE, 1);
+    tzset();
+
+    esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
+    esp_sntp_setservername(0, "pool.ntp.org");
+    esp_sntp_setservername(1, "time.google.com");
+    esp_sntp_init();
+    ESP_LOGI(TAG, "SNTP started (TZ='%s')", CONFIG_STUDYBUD_TIMEZONE);
+}
+
+esp_err_t wifi_manager_init(const wifi_credential_t *credentials, int count)
+{
+    if (count <= 0 || credentials == NULL) {
+        ESP_LOGW(TAG, "No WiFi credentials provided, skipping WiFi");
+        return ESP_FAIL;
+    }
+
     s_wifi_event_group = xEventGroupCreate();
 
     esp_err_t ret = nvs_flash_init();
@@ -75,38 +80,52 @@ esp_err_t wifi_manager_init(const char *ssid, const char *password)
     ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP,
                                                         &wifi_event_handler, NULL, &inst_got_ip));
 
-    wifi_config_t wifi_config = {0};
-    strncpy((char *)wifi_config.sta.ssid, ssid, sizeof(wifi_config.sta.ssid) - 1);
-    strncpy((char *)wifi_config.sta.password, password, sizeof(wifi_config.sta.password) - 1);
-    wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
-
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
 
-    ESP_LOGI(TAG, "WiFi STA initialized, connecting to '%s'...", ssid);
+    for (int i = 0; i < count; i++) {
+        const wifi_credential_t *cred = &credentials[i];
+        ESP_LOGI(TAG, "Trying network %d/%d: '%s'", i + 1, count, cred->ssid);
 
-    EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
-                                           WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
-                                           pdFALSE, pdFALSE, portMAX_DELAY);
+        esp_wifi_disconnect();
+        vTaskDelay(pdMS_TO_TICKS(500));
 
-    if (bits & WIFI_CONNECTED_BIT) {
-        ESP_LOGI(TAG, "WiFi connected");
+        wifi_config_t wifi_config = {0};
+        strncpy((char *)wifi_config.sta.ssid, cred->ssid, sizeof(wifi_config.sta.ssid) - 1);
+        strncpy((char *)wifi_config.sta.password, cred->password, sizeof(wifi_config.sta.password) - 1);
+        wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+        ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
 
-        setenv("TZ", CONFIG_STUDYBUD_TIMEZONE, 1);
-        tzset();
+        for (int retry = 0; retry < MAX_RETRY_PER_NETWORK; retry++) {
+            xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT | WIFI_FAIL_BIT);
 
-        esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
-        esp_sntp_setservername(0, "pool.ntp.org");
-        esp_sntp_setservername(1, "time.google.com");
-        esp_sntp_init();
-        ESP_LOGI(TAG, "SNTP started (TZ='%s')", CONFIG_STUDYBUD_TIMEZONE);
+            esp_err_t connect_ret = esp_wifi_connect();
+            if (connect_ret != ESP_OK) {
+                ESP_LOGW(TAG, "Connect call failed: %d, retrying...", connect_ret);
+                vTaskDelay(pdMS_TO_TICKS(1000));
+                continue;
+            }
 
-        return ESP_OK;
-    } else {
-        ESP_LOGE(TAG, "WiFi connection failed");
-        return ESP_FAIL;
+            EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
+                                                   WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
+                                                   pdFALSE, pdFALSE,
+                                                   pdMS_TO_TICKS(CONNECT_TIMEOUT_MS));
+
+            if (bits & WIFI_CONNECTED_BIT) {
+                ESP_LOGI(TAG, "WiFi connected to '%s'", cred->ssid);
+                start_sntp();
+                return ESP_OK;
+            }
+
+            ESP_LOGW(TAG, "Failed to connect to '%s' (attempt %d/%d)",
+                     cred->ssid, retry + 1, MAX_RETRY_PER_NETWORK);
+        }
+
+        ESP_LOGW(TAG, "All retries exhausted for '%s'", cred->ssid);
     }
+
+    ESP_LOGE(TAG, "Failed to connect to any WiFi network");
+    return ESP_FAIL;
 }
 
 esp_ip4_addr_t wifi_manager_get_ip(void)

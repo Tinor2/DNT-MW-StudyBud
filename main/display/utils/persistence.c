@@ -1,6 +1,7 @@
 #include "persistence.h"
 #include "sd_card.h"
 #include "sleep_store.h"
+#include "sedentary_store.h"
 #include "session_store.h"
 #include "points_store.h"
 #include "../app_state.h"
@@ -9,6 +10,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
 
 static const char *TAG = "Persistence";
 
@@ -265,9 +267,11 @@ static bool load_state(void)
         state->settings.brightness = find_int(settings_start, "brightness", 80);
         state->settings.volume = find_int(settings_start, "volume", 40);
         state->settings.idle_timeout = find_int(settings_start, "idle_timeout", 60);
+        state->settings.reading_light = find_int(settings_start, "reading_light", 0);
     }
 
     uint16_t sleep_history[7] = {0};
+    int16_t sleep_starts[7] = {-1, -1, -1, -1, -1, -1, -1};
     int sleep_count = 0;
     const char *sleep_start = find_field(buf, "sleep_history");
     if (sleep_start) {
@@ -285,7 +289,24 @@ static bool load_state(void)
             }
         }
     }
-    sleep_store_set_history(sleep_history, sleep_count);
+    const char *starts_start = find_field(buf, "sleep_starts");
+    if (starts_start) {
+        const char *p = strchr(starts_start, '[');
+        if (p) {
+            p++;
+            int i = 0;
+            while (i < 7) {
+                skip_spaces(&p);
+                if (*p == ']') break;
+                if (*p == ',') p++;
+                skip_spaces(&p);
+                sleep_starts[i] = (int16_t)atoi(p);
+                i++;
+                while (*p && *p != ',' && *p != ']') p++;
+            }
+        }
+    }
+    sleep_store_set_history_entries(sleep_history, sleep_starts, sleep_count);
 
     int breath = find_int(buf, "breath_count", 0);
     session_store_set_breath_count(breath);
@@ -390,6 +411,67 @@ static bool load_state(void)
         }
     }
 
+    const char *sed_start = find_field(buf, "sedentary");
+    if (sed_start) {
+        sedentary_state_t *sed = sedentary_store_get_state();
+        sed->enabled = find_bool(sed_start, "enabled", true);
+        sed->interval_min = find_int(sed_start, "interval_min", SEDENTARY_DEFAULT_INTERVAL_MIN);
+        sed->quiet_start_min = find_int(sed_start, "quiet_start_min", 23 * 60);
+        sed->quiet_end_min = find_int(sed_start, "quiet_end_min", 7 * 60);
+
+        const char *ex_start = find_field(sed_start, "exercises");
+        if (ex_start) {
+            const char *p = strchr(ex_start, '[');
+            if (p) {
+                char names[SEDENTARY_MAX_EXERCISES][SEDENTARY_EXERCISE_LEN];
+                const char *name_ptrs[SEDENTARY_MAX_EXERCISES];
+                int count = 0;
+                p++;
+                while (count < SEDENTARY_MAX_EXERCISES) {
+                    skip_comma(&p);
+                    if (*p == ']') break;
+                    if (*p != '"') break;
+                    p++;
+                    const char *end = strchr(p, '"');
+                    if (!end) break;
+                    size_t len = (size_t)(end - p);
+                    if (len >= SEDENTARY_EXERCISE_LEN) len = SEDENTARY_EXERCISE_LEN - 1;
+                    memcpy(names[count], p, len);
+                    names[count][len] = '\0';
+                    name_ptrs[count] = names[count];
+                    count++;
+                    p = end + 1;
+                }
+                sedentary_store_set_exercises(name_ptrs, count);
+            }
+        }
+
+        sed->ui_state = find_int(sed_start, "ui_state", SEDENTARY_UI_IDLE);
+        sed->running = find_bool(sed_start, "running", false);
+        sed->remaining_sec = find_int(sed_start, "remaining_sec", 0);
+        sed->total_sec = find_int(sed_start, "total_sec", 0);
+        sed->end_epoch = (int64_t)find_int(sed_start, "end_epoch", 0);
+        sed->snoozing = find_bool(sed_start, "snoozing", false);
+        sed->snooze_until = (int64_t)find_int(sed_start, "snooze_until", 0);
+        find_string(sed_start, "day", sed->day_key, sizeof(sed->day_key), "");
+        sed->breaks_today = find_int(sed_start, "breaks_today", 0);
+        sed->rewarded_today = find_int(sed_start, "rewarded_today", 0);
+        sed->last_exercise_idx = find_int(sed_start, "last_exercise_idx", -1);
+
+        if (sed->running && sed->end_epoch > 0) {
+            time_t now;
+            time(&now);
+            int64_t remaining = sed->end_epoch - (int64_t)now;
+            if (remaining <= 0) {
+                sed->remaining_sec = 0;
+                sed->running = false;
+                sed->pending_alert = true;
+            } else {
+                sed->remaining_sec = (int)remaining;
+            }
+        }
+    }
+
     ESP_LOGI(TAG, "State loaded: %d todos, %d presets, %d exercises, %d sleep entries",
              state->todo_count, state->preset_count, state->exercise_count, sleep_count);
 
@@ -407,7 +489,7 @@ bool persistence_save(void)
 
     int off = 0;
     off += snprintf(buf + off, SAVE_BUF_SIZE - off,
-                    "{\"version\":2,");
+                    "{\"version\":3,");
 
     off += snprintf(buf + off, SAVE_BUF_SIZE - off,
                     "\"todo_count\":%d,\"next_todo_id\":%d,\"todos\":[",
@@ -457,17 +539,22 @@ bool persistence_save(void)
                     state->water.glasses, state->water.goal);
 
     off += snprintf(buf + off, SAVE_BUF_SIZE - off,
-                    "\"settings\":{\"brightness\":%d,\"volume\":%d,\"idle_timeout\":%d},",
+                    "\"settings\":{\"brightness\":%d,\"volume\":%d,\"idle_timeout\":%d,\"reading_light\":%d},",
                     state->settings.brightness, state->settings.volume,
-                    state->settings.idle_timeout);
+                    state->settings.idle_timeout, state->settings.reading_light);
 
     uint16_t sleep_history[7];
-    int sleep_count;
-    sleep_store_get_history(sleep_history, &sleep_count);
+    int16_t sleep_starts[7];
+    sleep_store_get_last_7_entries(sleep_history, sleep_starts);
     off += snprintf(buf + off, SAVE_BUF_SIZE - off, "\"sleep_history\":[");
-    for (int i = 0; i < sleep_count && i < 7; i++) {
+    for (int i = 0; i < 7 && (sleep_history[i] > 0 || sleep_starts[i] >= 0); i++) {
         if (i > 0) off += snprintf(buf + off, SAVE_BUF_SIZE - off, ",");
         off += snprintf(buf + off, SAVE_BUF_SIZE - off, "%u", sleep_history[i]);
+    }
+    off += snprintf(buf + off, SAVE_BUF_SIZE - off, "],\"sleep_starts\":[");
+    for (int i = 0; i < 7 && (sleep_history[i] > 0 || sleep_starts[i] >= 0); i++) {
+        if (i > 0) off += snprintf(buf + off, SAVE_BUF_SIZE - off, ",");
+        off += snprintf(buf + off, SAVE_BUF_SIZE - off, "%d", sleep_starts[i]);
     }
     off += snprintf(buf + off, SAVE_BUF_SIZE - off, "],");
 
@@ -512,6 +599,33 @@ bool persistence_save(void)
     }
     off += snprintf(buf + off, SAVE_BUF_SIZE - off, "],\"history_count\":%d},",
                     ps->history_count);
+
+    sedentary_state_t *sed = sedentary_store_get_state();
+    off += snprintf(buf + off, SAVE_BUF_SIZE - off,
+                    "\"sedentary\":{\"enabled\":%s,\"interval_min\":%d,"
+                    "\"quiet_start_min\":%d,\"quiet_end_min\":%d,"
+                    "\"exercise_count\":%d,\"exercises\":[",
+                    sed->enabled ? "true" : "false",
+                    sed->interval_min, sed->quiet_start_min, sed->quiet_end_min,
+                    sed->exercise_count);
+    for (int i = 0; i < SEDENTARY_MAX_EXERCISES; i++) {
+        json_escape(sed->exercises[i], esc, sizeof(esc));
+        off += snprintf(buf + off, SAVE_BUF_SIZE - off, "%s\"%s\"",
+                        i > 0 ? "," : "", esc);
+    }
+    off += snprintf(buf + off, SAVE_BUF_SIZE - off,
+                    "],\"ui_state\":%d,\"running\":%s,\"remaining_sec\":%d,\"total_sec\":%d,"
+                    "\"end_epoch\":%lld,\"snoozing\":%s,\"snooze_until\":%lld,"
+                    "\"day\":\"%s\",\"breaks_today\":%d,\"rewarded_today\":%d,"
+                    "\"last_exercise_idx\":%d},",
+                    sed->ui_state,
+                    sed->running ? "true" : "false",
+                    sed->remaining_sec, sed->total_sec,
+                    (long long)sed->end_epoch,
+                    sed->snoozing ? "true" : "false",
+                    (long long)sed->snooze_until,
+                    sed->day_key, sed->breaks_today, sed->rewarded_today,
+                    sed->last_exercise_idx);
 
     off += snprintf(buf + off, SAVE_BUF_SIZE - off, "\"todo_id_cnt\":%d}", state->next_todo_id);
 

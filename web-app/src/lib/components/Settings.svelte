@@ -1,13 +1,17 @@
 <script>
   import { theme } from '../stores/theme.js';
+  import { readingLight } from '../stores/readingLight.js';
   import { notifications } from '../stores/notifications.js';
   import { ws } from '../stores/websocket.js';
 
   export let connected = false;
-  export let settings = { brightness: 50, volume: 50, idle_timeout: 30 };
+  export let settings = { brightness: 50, volume: 50, idle_timeout: 30, reading_light: 0 };
 
   let currentTheme = 'light';
   theme.subscribe(v => currentTheme = v);
+
+  let readingStrength = 0;
+  readingLight.subscribe(v => readingStrength = v);
 
   let devMode = window.location.hostname === 'localhost';
   let host = devMode ? '' : window.location.host;
@@ -20,9 +24,19 @@
     send('settings_update', {
       brightness: settings.brightness,
       volume: settings.volume,
-      idle_timeout: settings.idle_timeout
+      idle_timeout: settings.idle_timeout,
+      reading_light: readingStrength
     });
     notifications.add('settings_update', 'settings', 'Device settings applied');
+  }
+
+  function setReadingLight(v) {
+    readingLight.set(v);
+  }
+
+  function commitReadingLight(v) {
+    readingLight.set(v);
+    send('settings_update', { reading_light: v });
   }
 
   function exportData() {
@@ -56,6 +70,18 @@
       }
       keys.forEach(k => localStorage.removeItem(k));
       notifications.add('system', 'system', 'All cached data cleared');
+    }
+  }
+
+  function resetDemo() {
+    if (confirm('Reset all demo seed data? The page will reload with fresh demo data.')) {
+      const keys = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.startsWith('studybud_')) keys.push(key);
+      }
+      keys.forEach(k => localStorage.removeItem(k));
+      window.location.href = window.location.pathname;
     }
   }
 
@@ -112,6 +138,14 @@
           on:click={() => theme.set('dark')}>Dark</button>
       </div>
     </div>
+    <div class="setting-row">
+      <!-- svelte-ignore a11y-label-has-associated-control -->
+      <label>Reading Light</label>
+      <div class="slider-row">
+        <input type="range" min="0" max="100" value={readingStrength} on:input={(e) => setReadingLight(+e.target.value)} on:change={(e) => commitReadingLight(+e.target.value)} />
+        <span class="value">{readingStrength === 0 ? 'Off' : readingStrength + '%'}</span>
+      </div>
+    </div>
   </section>
 
   <!-- Data -->
@@ -120,6 +154,7 @@
     <div class="button-row">
       <button class="btn btn-primary" on:click={exportData}>Export All Data</button>
       <button class="btn btn-ghost" on:click={clearData}>Clear Cache</button>
+      <button class="btn btn-ghost demo-reset-btn" on:click={resetDemo}>Reset Demo</button>
     </div>
   </section>
 
@@ -229,5 +264,10 @@
     background: var(--color-surface);
     padding: 0.25rem 0.75rem;
     border-radius: var(--radius-pill);
+  }
+
+  .demo-reset-btn {
+    border: 1px dashed var(--color-border);
+    font-size: 0.8rem;
   }
 </style>

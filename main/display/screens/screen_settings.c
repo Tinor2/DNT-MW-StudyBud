@@ -19,20 +19,21 @@ static const char *TAG = "Screen_Settings";
 #define ROW_INNER_PAD 12
 #define ROW_COL_GAP   10
 
-#define NUM_SETTINGS 3
+#define NUM_SETTINGS 4
 
 typedef enum {
     SETTING_BRIGHTNESS = 0,
     SETTING_VOLUME,
-    SETTING_TIMEOUT
+    SETTING_TIMEOUT,
+    SETTING_READING
 } setting_id_t;
 
 static const char *setting_names[NUM_SETTINGS] = {
-    "Brightness", "Volume", "Idle Timeout"
+    "Brightness", "Volume", "Idle Timeout", "Reading Light"
 };
-static const int setting_min[NUM_SETTINGS] = { 0, 0, 0 };
-static const int setting_max[NUM_SETTINGS] = { 100, 100, 120 };
-static const int setting_step[NUM_SETTINGS] = { 1, 1, 5 };
+static const int setting_min[NUM_SETTINGS] = { 0, 0, 0, 0 };
+static const int setting_max[NUM_SETTINGS] = { 100, 100, 120, 100 };
+static const int setting_step[NUM_SETTINGS] = { 1, 1, 5, 5 };
 
 static lv_obj_t *screen;
 static lv_obj_t *settings_container;
@@ -62,6 +63,7 @@ static int *setting_value_ptr(int index)
         case SETTING_BRIGHTNESS: return &s->brightness;
         case SETTING_VOLUME:     return &s->volume;
         case SETTING_TIMEOUT:    return &s->idle_timeout;
+        case SETTING_READING:    return &s->reading_light;
         default:                 return NULL;
     }
 }
@@ -76,6 +78,8 @@ static void update_value_label(int index)
         lv_label_set_text(lbl, "Off");
     } else if (index == SETTING_TIMEOUT) {
         lv_label_set_text_fmt(lbl, "%d min", *vp);
+    } else if (index == SETTING_READING && *vp == 0) {
+        lv_label_set_text(lbl, "Off");
     } else {
         lv_label_set_text_fmt(lbl, "%d%%", *vp);
     }
@@ -86,6 +90,8 @@ static void apply_setting_change(int index)
     settings_t *s = &app_state_get()->settings;
     if (index == SETTING_BRIGHTNESS) {
         Set_Backlight((uint8_t)s->brightness);
+    } else if (index == SETTING_READING) {
+        ui_manager_set_reading_light(s->reading_light);
     }
     persistence_mark_dirty();
     app_state_broadcast_settings_sync();

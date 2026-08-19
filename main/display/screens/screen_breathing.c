@@ -24,6 +24,8 @@ static const char *TAG = "Screen_Breathing";
 #define MIN_CYCLES 1
 #define MAX_CYCLES 40
 
+#define BREATH_HIGHLIGHT darken_color(theme_accent(SCREEN_BREATHING), 0.30f)
+
 typedef enum {
     STATE_SELECTION,
     STATE_INSTRUCTION,
@@ -394,11 +396,11 @@ static void update_focus_styles(void)
             prev_focus_index = focus_index;
         }
 
-        lv_obj_set_style_border_color(btn_begin, theme_accent_light(SCREEN_BREATHING), 0);
-        lv_obj_set_style_border_color(btn_cycles, theme_accent_light(SCREEN_BREATHING), 0);
+        lv_obj_set_style_border_color(btn_begin, BREATH_HIGHLIGHT, 0);
+        lv_obj_set_style_border_color(btn_cycles, BREATH_HIGHLIGHT, 0);
 
         if (cycles_edit_mode) {
-            lv_obj_set_style_border_color(btn_cycles, theme_accent_light(SCREEN_BREATHING), 0);
+            lv_obj_set_style_border_color(btn_cycles, BREATH_HIGHLIGHT, 0);
             lv_obj_set_style_border_width(btn_cycles, 3, 0);
         }
     } else if (current_state == STATE_COMPLETE) {

@@ -75,6 +75,7 @@ typedef struct {
     int brightness;
     int volume;
     int idle_timeout;
+    int reading_light;
 } settings_t;
 
 typedef struct {

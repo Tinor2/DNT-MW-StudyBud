@@ -51,6 +51,7 @@ add_library(studybud_screens STATIC
     ${SCREEN_DIR}/screens/screen_timer.c
     ${SCREEN_DIR}/screens/screen_tamagotchi.c
     ${SCREEN_DIR}/screens/screen_water.c
+    ${SCREEN_DIR}/screens/screen_sedentary.c
     ${SCREEN_DIR}/screens/screen_settings.c
     ${SCREEN_DIR}/../assets/idle_bg_tree.c
     ${SCREEN_DIR}/../assets/app_logo.c
@@ -59,8 +60,14 @@ add_library(studybud_screens STATIC
     ${SCREEN_DIR}/../assets/breathing_logo.c
     ${SCREEN_DIR}/../assets/tamagotchi_logo.c
     ${SCREEN_DIR}/../assets/sleeping_logo.c
+    ${SCREEN_DIR}/../assets/sedentary_logo.c
+    ${SCREEN_DIR}/../assets/plant_1_sprite.c
+    ${SCREEN_DIR}/../assets/plant_2_sprite.c
+    ${SCREEN_DIR}/../assets/plant_3_sprite.c
+    ${SCREEN_DIR}/../assets/tamagotchi_backdrop.c
     ${SCREEN_DIR}/utils/session_store.c
     ${SCREEN_DIR}/utils/sleep_store.c
+    ${SCREEN_DIR}/utils/sedentary_store.c
     ${SCREEN_DIR}/utils/points_store.c
     ${SCREEN_DIR}/utils/timer_store.c
     ${SCREEN_DIR}/app_state.c

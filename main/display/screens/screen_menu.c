@@ -8,6 +8,7 @@
 #include "tamagotchi_logo.h"
 #include "breathing_logo.h"
 #include "sleeping_logo.h"
+#include "sedentary_logo.h"
 #include "esp_log.h"
 #include <stdio.h>
 #include <math.h>
@@ -41,13 +42,14 @@ typedef struct {
 
 static const menu_item_t menu_items[] = {
     { LV_SYMBOL_HOME,      "Home",          SCREEN_HOME,       NULL },
-    { LV_SYMBOL_PLAY,      "Timer",         SCREEN_TIMER_PRESETS, &timer_logo },
-    { LV_SYMBOL_LIST,      "Todos",         SCREEN_TODOS,      &todo_logo },
-    { LV_SYMBOL_BELL,      "Water",         SCREEN_WATER,      &app_logo },
     { LV_SYMBOL_BELL,      "Tamagotchi",    SCREEN_TAMAGOTCHI, &tamagotchi_logo },
     { LV_SYMBOL_REFRESH,   "Breathing",     SCREEN_BREATHING,  &breathing_logo },
-    { LV_SYMBOL_IMAGE,     "Backgrounds",   SCREEN_BACKGROUNDS, NULL },
+    { LV_SYMBOL_BELL,      "Water",         SCREEN_WATER,      &app_logo },
+    { LV_SYMBOL_OK,        "Stretch Break", SCREEN_SEDENTARY,  &sedentary_logo },
     { LV_SYMBOL_EYE_OPEN,  "Sleep",         SCREEN_SLEEP,      &sleeping_logo },
+    { LV_SYMBOL_PLAY,      "Timer",         SCREEN_TIMER_PRESETS, &timer_logo },
+    { LV_SYMBOL_LIST,      "Todos",         SCREEN_TODOS,      &todo_logo },
+    { LV_SYMBOL_IMAGE,     "Backgrounds",   SCREEN_BACKGROUNDS, NULL },
     { LV_SYMBOL_SETTINGS,  "Settings",      SCREEN_SETTINGS,   NULL },
 };
 static const int menu_count = sizeof(menu_items) / sizeof(menu_items[0]);
@@ -320,7 +322,12 @@ lv_obj_t *screen_menu_create(void)
 
     /* Compute per-item accent colors from icon images */
     for (int i = 0; i < menu_count; i++) {
-        if (menu_items[i].img) {
+        if (menu_items[i].target == SCREEN_TAMAGOTCHI) {
+            /* Tamagotchi uses the hard-coded plant green so the menu icon
+               and navigation glow ring match the plant on the app screen. */
+            accent_colors[i] = LV_COLOR_TAMAGOTCHI;
+        }
+        else if (menu_items[i].img) {
             accent_colors[i] =
                 compute_dominant_color(
                     menu_items[i].img

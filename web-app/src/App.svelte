@@ -6,15 +6,25 @@
   import breathingLogo from './assets/logos/breathing.png';
   import waterLogo from './assets/logos/water.png';
   import sleepLogo from './assets/logos/sleeping_logo.png';
+  import tamagotchiLogo from './assets/logos/tamagotchi.png';
+  import excercizeLogo from './assets/logos/excercize-logo.png';
   import { ws } from './lib/stores/websocket.js';
   import { theme } from './lib/stores/theme.js';
+  import { readingLight } from './lib/stores/readingLight.js';
   import { notifications } from './lib/stores/notifications.js';
+  import { tamagotchiStore, setPointsState, applyPointsEvent } from './lib/stores/tamagotchi.js';
+  import { seedDemoGoals } from './lib/stores/goals.js';
   import NotificationToast from './lib/components/NotificationToast.svelte';
+  import InfoIcon from './lib/components/InfoIcon.svelte';
   import Settings from './lib/components/Settings.svelte';
   import EventLog from './lib/components/EventLog.svelte';
+  import * as insights from './lib/insights.js';
+  import TamagotchiPage from './lib/components/TamagotchiPage.svelte';
 
+  const urlParams = new URLSearchParams(window.location.search);
   const devMode = window.location.hostname === 'localhost';
-  const DEBUG_LOG = new URLSearchParams(window.location.search).has('debug');
+  const DEBUG_LOG = urlParams.has('debug');
+  const DEMO_MODE = urlParams.has('demo');
   let host = devMode ? 'localhost:5173' : window.location.host;
   let connected = false;
   let statusText = 'disconnected';
@@ -28,15 +38,23 @@
   let focusLog = loadLog('studybud_focus_log');
   let sleepState = 'idle';
 
+  if (urlParams.has('reset')) {
+    clearAllSeeds();
+  }
+
   seedDemoSessions();
   seedDemoLogs();
+  seedDemoGoals();
+  seedDemoTamagotchi();
+  seedDemoFocusLog();
+  seedDemoEventLog();
 
   function seedDemoSessions() {
     try {
       if (localStorage.getItem('studybud_seeded_sessions_v1')) return;
     } catch { return; }
     if (breathSessions.length > 0) return;
-    const names = ['Box Breathing', '4-7-8 Relaxation'];
+    const names = ['Calm Box', '4-7-8'];
     const cyclesPer = [8, 12, 6, 15, 10, 9, 14, 7];
     const seeds = [];
     for (let i = 0; i < 8; i++) {
@@ -86,6 +104,161 @@
     try { localStorage.setItem('studybud_seeded_v1', '1'); } catch {}
   }
 
+  function dateOffsetKey(daysAgo) {
+    const d = new Date();
+    d.setDate(d.getDate() - daysAgo);
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+
+  function seedDemoTamagotchi() {
+    try {
+      if (localStorage.getItem('studybud_seeded_points_v1')) return;
+    } catch { return; }
+    const today = dateOffsetKey(0);
+    const yday = dateOffsetKey(1);
+    const twoAgo = dateOffsetKey(2);
+    const history = [
+      { amount: 30, reason: 8, detail: -1, day: today, ts: Date.now() - 2 * 3600e3 },
+      { amount: 20, reason: 7, detail: 1, day: today, ts: Date.now() - 3 * 3600e3 },
+      { amount: 20, reason: 7, detail: 0, day: today, ts: Date.now() - 5 * 3600e3 },
+      { amount: 25, reason: 5, detail: 1, day: today, ts: Date.now() - 8 * 3600e3 },
+      { amount: 10, reason: 4, detail: 6, day: today, ts: Date.now() - 9 * 3600e3 },
+      { amount: 5, reason: 2, detail: 1, day: today, ts: Date.now() - 10 * 3600e3 },
+      { amount: 20, reason: 3, detail: 8, day: yday, ts: Date.now() - 24 * 3600e3 },
+      { amount: 10, reason: 1, detail: 3, day: yday, ts: Date.now() - 26 * 3600e3 },
+      { amount: 50, reason: 10, detail: 480, day: yday, ts: Date.now() - 28 * 3600e3 },
+      { amount: 30, reason: 6, detail: 1390, day: yday, ts: Date.now() - 30 * 3600e3 },
+      { amount: 10, reason: 11, detail: 1, day: yday, ts: Date.now() - 32 * 3600e3 },
+      { amount: 25, reason: 5, detail: 2, day: twoAgo, ts: Date.now() - 50 * 3600e3 },
+    ];
+    setPointsState({
+      total: 320,
+      today: 55,
+      day: today,
+      level: 2,
+      level_progress: 70,
+      level_threshold: 150,
+      water_today: 6,
+      water_goal: 8,
+      water_bonus: false,
+      bedtime_bonus: false,
+      bedtime: { hour: 23, min: 30 },
+      goals: [],
+      streaks: [
+        { activity: 'focus', days: 4, multiplier: 130 },
+        { activity: 'water', days: 7, multiplier: 160 },
+        { activity: 'breathing', days: 2, multiplier: 110 },
+        { activity: 'goals', days: 3, multiplier: 120 },
+        { activity: 'sleep', days: 0, multiplier: 100 },
+      ],
+      history,
+    });
+    try { localStorage.setItem('studybud_seeded_points_v1', '1'); } catch {}
+  }
+
+  function seedDemoFocusLog() {
+    try {
+      if (localStorage.getItem('studybud_seeded_focus_v1')) return;
+    } catch { return; }
+    if (focusLog.length > 0) return;
+    const names = ['Deep Work', 'Quick Sprint', 'Long Session'];
+    const entries = [];
+    for (let i = 0; i < 5; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - (4 - i));
+      d.setHours(9 + i * 2, 0, 0, 0);
+      const isPomodoro = i % 2 === 0;
+      const durationMin = isPomodoro ? 25 : 50;
+      entries.push({
+        ts: d.getTime(),
+        preset_name: names[i % names.length],
+        is_pomodoro: isPomodoro,
+        phase: 0,
+        phase_name: 'session',
+        duration_sec: durationMin * 60
+      });
+      if (isPomodoro) {
+        const breakD = new Date(d.getTime() + (durationMin + 1) * 60000);
+        entries.push({
+          ts: breakD.getTime(),
+          preset_name: names[i % names.length],
+          is_pomodoro: true,
+          phase: 1,
+          phase_name: 'short_break',
+          duration_sec: 5 * 60
+        });
+      }
+    }
+    focusLog = entries;
+    saveLog('studybud_focus_log', entries);
+    try { localStorage.setItem('studybud_seeded_focus_v1', '1'); } catch {}
+  }
+
+  function seedDemoEventLog() {
+    try {
+      if (localStorage.getItem('studybud_seeded_elog_v1')) return;
+    } catch { return; }
+    if (eventLog.length > 0) return;
+    const now = Date.now();
+    const entries = [
+      { timestamp: new Date(now - 2 * 3600e3).toISOString(), direction: 'in', type: 'points_earned', data: { amount: 25, reason: 5, total: 320 } },
+      { timestamp: new Date(now - 3 * 3600e3).toISOString(), direction: 'in', type: 'todo_toggled', data: { id: 1, done: true } },
+      { timestamp: new Date(now - 4 * 3600e3).toISOString(), direction: 'in', type: 'water_sync', data: { glasses: 5, goal: 8 } },
+      { timestamp: new Date(now - 5 * 3600e3).toISOString(), direction: 'in', type: 'breathing_complete', data: { cycles: 6, exercise_id: 1 } },
+      { timestamp: new Date(now - 6 * 3600e3).toISOString(), direction: 'in', type: 'points_earned', data: { amount: 5, reason: 2, total: 280 } },
+      { timestamp: new Date(now - 8 * 3600e3).toISOString(), direction: 'in', type: 'timer_session_complete', data: { preset_name: 'Deep Work', duration_sec: 1500, is_pomodoro: true, phase: 0 } },
+      { timestamp: new Date(now - 10 * 3600e3).toISOString(), direction: 'in', type: 'sleep_session', data: { duration_min: 480, start_hour_min: 1390 } },
+      { timestamp: new Date(now - 12 * 3600e3).toISOString(), direction: 'in', type: 'full_sync', data: {} },
+      { timestamp: new Date(now - 16 * 3600e3).toISOString(), direction: 'in', type: 'water_sync', data: { glasses: 4, goal: 8 } },
+      { timestamp: new Date(now - 20 * 3600e3).toISOString(), direction: 'out', type: 'connect', data: { host: 'esp32-studybud' } },
+    ];
+    eventLog = entries;
+    saveEventLog();
+    try { localStorage.setItem('studybud_seeded_elog_v1', '1'); } catch {}
+  }
+
+  function clearAllSeeds() {
+    try {
+      const keys = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('studybud_')) keys.push(key);
+      }
+      keys.forEach(k => localStorage.removeItem(k));
+    } catch { /* ignore */ }
+    window.history.replaceState({}, '', window.location.pathname);
+  }
+
+  function seedDemoDeviceState() {
+    try {
+      if (localStorage.getItem('studybud_seeded_devices_v1')) return;
+    } catch { return; }
+    if (todos.length > 0 || presets.length > 0) return;
+    todos = [
+      { id: 1, text: 'Complete the project proposal', priority: 2, done: true },
+      { id: 2, text: 'Finish the design review doc', priority: 1, done: false },
+      { id: 3, text: 'Call the dentist to schedule', priority: 1, done: false },
+      { id: 4, text: '30 minutes of deep reading', priority: 0, done: false },
+    ];
+    presets = [
+      { id: 1, name: 'Deep Work', focus_ms: 25 * 60 * 1000, break_ms: 5 * 60 * 1000, cycles: 4, is_pomodoro: true },
+      { id: 2, name: 'Quick Sprint', focus_ms: 10 * 60 * 1000, break_ms: 2 * 60 * 1000, cycles: 6, is_pomodoro: true },
+      { id: 3, name: 'Long Session', focus_ms: 45 * 60 * 1000, break_ms: 10 * 60 * 1000, cycles: 1, is_pomodoro: false },
+    ];
+    waterState = { glasses: 6, goal: 8 };
+    breathingState = {
+      exercises: [
+        { id: 1, name: 'Calm Box', inhale_ms: 4000, hold_ms: 4000, exhale_ms: 4000, hold2_ms: 4000 },
+        { id: 2, name: '4-7-8', inhale_ms: 4000, hold_ms: 7000, exhale_ms: 8000, hold2_ms: 0 },
+      ],
+      active: false,
+      active_id: 1,
+      sessions_today: 2,
+    };
+    try { localStorage.setItem('studybud_seeded_devices_v1', '1'); } catch {}
+  }
+
   const SYNC_INTERVAL_MS = 10000;
   const syncTimer = setInterval(() => {
     if (connected) {
@@ -101,6 +274,10 @@
 
   let activeTab = 'home';
   let showEventLog = false;
+  let tamagotchiState = { total: 0, today: 0, level: 1, goals: [], streaks: [], history: [] };
+  tamagotchiStore.subscribe(value => {
+    tamagotchiState = value;
+  });
   let breathingRangeValue = 'week';
   let sleepRangeValue = 'week';
   let waterRangeValue = 'week';
@@ -186,6 +363,10 @@
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
   }
 
+  function pct(mins) {
+    return (mins / 1440) * 100;
+  }
+
   function addWaterEntry(delta) {
     const date = todayKey();
     const idx = waterLog.findIndex(e => e.date === date);
@@ -213,7 +394,7 @@
     saveLog('studybud_water_log', waterLog);
   }
 
-  function backfillSleep(history) {
+  function backfillSleep(history, starts) {
     if (!Array.isArray(history) || history.length === 0) return;
     const n = Math.min(history.length, 7);
     let next = sleepLog.slice();
@@ -224,8 +405,13 @@
       d.setDate(d.getDate() - (n - 1 - i));
       const date = dateKey(d);
       const idx = next.findIndex(e => e.date === date);
-      if (idx >= 0) next[idx] = { ...next[idx], minutes: Math.max(next[idx].minutes || 0, minutes) };
-      else next.push({ date, minutes });
+      const startMin = Array.isArray(starts) ? (starts[i] >= 0 ? starts[i] : undefined) : undefined;
+      if (idx >= 0) next[idx] = {
+        ...next[idx],
+        minutes: Math.max(next[idx].minutes || 0, minutes),
+        ...(startMin !== undefined ? { start_hour_min: startMin } : {})
+      };
+      else next.push({ date, minutes, ...(startMin !== undefined ? { start_hour_min: startMin } : {}) });
     }
     sleepLog = next;
     saveLog('studybud_sleep_log', sleepLog);
@@ -359,13 +545,42 @@
   $: totalBreathSec = breathSessions.reduce((s, e) => s + (e.duration_sec || 0), 0);
   $: avgBreathMin = breathSessions.length ? totalBreathSec / breathSessions.length / 60 : 0;
   $: breathSessionsWeek = breathSessions.filter(s => s.ts >= Date.now() - 7 * 86400000).length;
+  $: waterAvgGlasses = (() => {
+    const days = waterData.filter(d => d.glasses > 0);
+    return days.length ? days.reduce((s, d) => s + d.glasses, 0) / days.length : 0;
+  })();
+  $: waterActiveDays = waterData.filter(d => d.glasses > 0).length;
+  $: waterGoalDays = waterData.filter(d => d.glasses > 0 && d.glasses >= (waterState.goal || 8)).length;
+  $: waterGoalPct = waterActiveDays ? Math.round((waterGoalDays / waterActiveDays) * 100) : 0;
+  $: sleepWindows = sleepData
+    .filter(b => b.hours > 0 && b.start_hour_min !== undefined && b.start_hour_min >= 0)
+    .map(b => {
+      const start = b.start_hour_min;
+      const end = (start + b.hours * 60) % 1440;
+      return { label: b.label, start, end, hours: b.hours };
+    });
+  $: sleepEval = insights.sleepEvaluation(weeklySleepAvg, avgBedtimeMin, avgWakeMin);
+  $: breathEval = insights.breathingEvaluation(breathSessionsWeek, avgBreathMin);
+  $: waterEval = insights.waterEvaluation(waterAvgGlasses, waterGoalPct);
+  $: waterGoalReached = waterState.goal > 0 && waterState.glasses >= waterState.goal;
+  let goalCelebrated = false;
+  $: if (waterGoalReached) {
+    if (!goalCelebrated) {
+      goalCelebrated = true;
+      notifications.add('success', 'water', `🎉 Goal reached! ${waterState.glasses}/${waterState.goal} glasses. Staying hydrated keeps your mood and focus steady.`);
+    }
+  } else {
+    goalCelebrated = false;
+  }
 
   let timerState = { remaining_ms: 0, running: false, preset_id: 0, phase: 0, phase_name: 'session', is_pomodoro: false, total_ms: 0, phase_complete: false };
   let todos = [];
   let presets = [];
   let breathingState = { exercises: [], active: false, active_id: 0, sessions_today: 0 };
   let waterState = { glasses: 0, goal: 8 };
-  let settingsState = { brightness: 50, volume: 50, idle_timeout: 30 };
+  let settingsState = { brightness: 50, volume: 50, idle_timeout: 30, reading_light: 0 };
+
+  seedDemoDeviceState();
 
   let processedSeq = 0;
   let syncRequested = false;
@@ -376,6 +591,7 @@
     send('get_sleep');
     send('get_water');
     send('get_timer');
+    send('get_points');
   }
 
   ws.subscribe(state => {
@@ -393,6 +609,10 @@
     processedSeq = state.seq;
   });
 
+  if (DEMO_MODE && !connected) {
+    setTimeout(() => { if (!connected) connect(); }, 500);
+  }
+
   function normalizeExercises(exercises) {
     return (exercises || []).map(ex => ({
       ...ex,
@@ -409,14 +629,24 @@
         logEvent('in', msg.data.type, msg.data);
         switch (msg.data.type) {
           case 'full_sync':
+            setPointsState(msg.data.points || {});
             todos = msg.data.todos || [];
             presets = msg.data.presets || [];
             timerState = { ...timerState, ...msg.data.timer } || timerState;
             waterState = { glasses: msg.data.water?.glasses || 0, goal: msg.data.water?.goal || 8 };
             settingsState = { ...settingsState, ...msg.data.settings };
+            if (typeof msg.data.settings?.reading_light === 'number') {
+              readingLight.set(msg.data.settings.reading_light);
+            }
             if (Array.isArray(msg.data.exercises)) {
               breathingState = { exercises: normalizeExercises(msg.data.exercises), active: msg.data.active || false, active_id: msg.data.active_id || 0, sessions_today: msg.data.sessions_today || 0 };
             }
+            break;
+          case 'points_sync':
+            setPointsState(msg.data || {});
+            break;
+          case 'points_earned':
+            applyPointsEvent(msg.data || {});
             break;
           case 'timer_info': case 'timer_update': case 'timer_sync':
             timerState = { ...timerState, ...msg.data };
@@ -453,14 +683,15 @@
             addSleepEntry(msg.data.duration_min || 0, msg.data.start_hour_min);
             break;
           case 'sleep_info':
-            backfillSleep(msg.data.history);
+            backfillSleep(msg.data.history, msg.data.starts);
             break;
           case 'breathing_complete':
             addBreathEntry(msg.data.cycles || 0);
             addBreathSession(msg.data.cycles || 0, msg.data.exercise_id);
             break;
           case 'settings_info': case 'settings_sync':
-            settingsState = { brightness: msg.data.brightness || 50, volume: msg.data.volume || 50, idle_timeout: msg.data.idle_timeout || 30 };
+            settingsState = { brightness: msg.data.brightness || 50, volume: msg.data.volume || 50, idle_timeout: msg.data.idle_timeout || 30, reading_light: msg.data.reading_light || 0 };
+            readingLight.set(msg.data.reading_light || 0);
             break;
         }
       }
@@ -476,11 +707,13 @@
   function connect() {
     ws.connect(host, devMode);
     logEvent('out', 'connect', { host });
+    notifications.add('connection', 'connection', 'Connecting to device…');
   }
 
   function disconnect() {
     ws.disconnect();
     logEvent('out', 'disconnect', {});
+    notifications.add('info', 'connection', 'Disconnected from device');
   }
 
   function send(type, data = {}) {
@@ -521,15 +754,35 @@
   // Todo commands
   function todoAdd() {
     const text = prompt('Todo text:');
-    if (text) { send('todo_add', { text, priority: 3 }); }
+    if (text) {
+      send('todo_add', { text, priority: 3 });
+      notifications.add('success', 'todo', 'Todo added');
+    }
   }
-  function todoToggle(id, done) { send('todo_update', { id, done: !done }); }
+  function todoToggle(id, done) {
+    send('todo_update', { id, done: !done });
+    if (!done) notifications.add('success', 'todo', 'Todo completed — nice work!');
+    else notifications.add('info', 'todo', 'Todo marked as not done');
+  }
+  function todoEdit(id, text) {
+    const updated = prompt('Edit todo:', text);
+    if (updated && updated.trim()) {
+      send('todo_update', { id, text: updated.trim() });
+      notifications.add('success', 'todo', 'Todo updated');
+    }
+  }
   function todoDelete(id) {
-    if (confirm('Delete todo?')) { send('todo_delete', { id }); }
+    if (confirm('Delete todo?')) {
+      send('todo_delete', { id });
+      notifications.add('info', 'todo', 'Todo deleted');
+    }
   }
 
   // Breathing commands (select preset only - start/stop happens on the device)
-  function breathingSelect(id) { send('breathing_select', { exercise_id: id }); }
+  function breathingSelect(id) {
+    send('breathing_select', { exercise_id: id });
+    notifications.add('info', 'breathing', 'Breathing exercise selected');
+  }
   function breathingEdit(ex) {
     const name = prompt('Exercise name:', ex.name);
     if (name === null) return;
@@ -551,16 +804,19 @@
       exhale: Math.round((exhale ?? ex.exhale_ms / 1000) * 1000),
       hold2: Math.round((hold2 ?? ex.hold2_ms / 1000) * 1000)
     });
+    notifications.add('success', 'breathing', 'Exercise timing updated');
   }
 
   // Water commands
   function waterAdd() {
     addWaterEntry(1);
     send('water_log', { action: 'add' });
+    notifications.add('success', 'water', `Water +1 (${waterState.glasses + 1}/${waterState.goal})`);
   }
   function waterRemove() {
     addWaterEntry(-1);
     send('water_log', { action: 'remove' });
+    notifications.add('info', 'water', 'Water −1');
   }
   function waterGoalSet(n) {
     const g = Math.max(1, Math.min(20, Math.round(n) || waterState.goal));
@@ -586,10 +842,14 @@
         break_ms: parseInt(prompt('Break duration (ms):', 5 * 60 * 1000)) || 5 * 60 * 1000,
         is_pomodoro: confirm('Is this a Pomodoro preset?')
       });
+      notifications.add('success', 'timer', 'Preset added');
     }
   }
   function presetDelete(id) {
-    if (confirm('Delete preset?')) { send('preset_delete', { preset_id: id }); }
+    if (confirm('Delete preset?')) {
+      send('preset_delete', { preset_id: id });
+      notifications.add('info', 'timer', 'Preset deleted');
+    }
   }
 
   function priorityColor(p) {
@@ -599,11 +859,13 @@
 
   const tabs = [
     { id: 'home', label: 'Home', icon: '⌂', logo: null },
-    { id: 'timer', label: 'Timer', icon: '⏱', logo: timerLogo },
-    { id: 'todos', label: 'Todos', icon: '✓', logo: todoLogo },
+    { id: 'tamagotchi', label: 'Tamagotchi', icon: '🌱', logo: tamagotchiLogo },
     { id: 'breathing', label: 'Breathing', icon: '🌬', logo: breathingLogo },
     { id: 'water', label: 'Water', icon: '💧', logo: waterLogo },
     { id: 'sleep', label: 'Sleep', icon: '🌙', logo: sleepLogo },
+    { id: 'todos', label: 'Todos', icon: '✓', logo: todoLogo },
+    { id: 'timer', label: 'Timer', icon: '⏱', logo: timerLogo },
+    { id: 'sedentary', label: 'Stretch Break', icon: '🏃', logo: excercizeLogo },
     { id: 'settings', label: 'Settings', icon: '⚙', logo: null },
   ];
 
@@ -626,7 +888,7 @@
       <button class="btn-icon" on:click={() => showEventLog = !showEventLog} class:btn-active={showEventLog} title="Event Log">
         📋
       </button>
-      <button class="btn-icon" on:click={() => theme.toggle()} title="Toggle theme">
+      <button class="btn-icon" on:click={() => { theme.toggle(); notifications.add('info', 'settings', `Switched to ${currentTheme === 'light' ? 'dark' : 'light'} mode`); }} title="Toggle theme">
         {currentTheme === 'light' ? '🌙' : '☀️'}
       </button>
     </div>
@@ -700,6 +962,7 @@
       <div class="page timer-page">
         <h2><img class="page-logo" src={timerLogo} alt="Timer" /> Timer Presets</h2>
         <div class="timer-status card">
+          <InfoIcon lines={insights.timerInsight()} title="Breaks & mental health" />
           <p>
             Timer: <strong>{formatMs(timerState.remaining_ms)}</strong>
             {#if timerState.running}
@@ -754,6 +1017,7 @@
         </div>
 
         <div class="card pomodoro-analytics">
+          <InfoIcon lines={insights.timerAnalysisInsight(focusSessionsToday, focusMinutesToday)} title="Tracking your focus" />
           <h3>Pomodoro Analytics</h3>
           <div class="analytics-row">
             <div class="analytics-stat">
@@ -780,7 +1044,10 @@
     <!-- Todos -->
     {:else if activeTab === 'todos'}
       <div class="page todos-page">
-        <h2><img class="page-logo" src={todoLogo} alt="Todos" /> Todos</h2>
+        <div class="page-head">
+          <h2><img class="page-logo" src={todoLogo} alt="Todos" /> Todos</h2>
+          <InfoIcon lines={insights.todosInsight()} title="Why tracking tasks helps" />
+        </div>
         <button class="btn btn-primary add-todo-btn" on:click={todoAdd} disabled={!connected}>
           + Add Todo
         </button>
@@ -794,6 +1061,7 @@
               {#if todo.priority !== undefined}
                 <span class="priority-dot" style="background: {priorityColor(todo.priority)}"></span>
               {/if}
+              <button class="btn-icon todo-edit" on:click={() => todoEdit(todo.id, todo.text)} title="Edit todo">✎</button>
               <button class="btn-icon todo-delete" on:click={() => todoDelete(todo.id)}>✕</button>
             </div>
           {/each}
@@ -804,6 +1072,7 @@
                 <div class="todo-item card done">
                   <button class="checkbox" on:click={() => todoToggle(todo.id, todo.done)}>✓</button>
                   <span class="todo-text done">{todo.text}</span>
+                  <button class="btn-icon todo-edit" on:click={() => todoEdit(todo.id, todo.text)} title="Edit todo">✎</button>
                   <button class="btn-icon todo-delete" on:click={() => todoDelete(todo.id)}>✕</button>
                 </div>
               {/each}
@@ -828,6 +1097,7 @@
           <p class="card-sub">Breathing control is device-only — tap an exercise to select it. The selected pattern's timing drives the device's breathing animation.</p>
         </div>
         <div class="card analysis-card">
+          <InfoIcon lines={insights.breathingInsight(avgBreathMin, breathSessionsWeek)} title="Breathing & stress" />
           <h3>Breathing Analysis</h3>
           <div class="analytics-row">
             <div class="analytics-stat">
@@ -847,6 +1117,15 @@
               <span class="analytics-label">Breathing sessions this week</span>
             </div>
           </div>
+          {#if breathEval}
+            <div class="evaluation {breathEval.grade}">
+              <span class="eval-icon">{breathEval.grade === 'good' ? '✅' : breathEval.grade === 'ok' ? '⚠️' : breathEval.grade === 'poor' ? '❗' : '💡'}</span>
+              <div class="eval-copy">
+                <strong>{breathEval.title}</strong>
+                <p>{breathEval.text}</p>
+              </div>
+            </div>
+          {/if}
           <p class="card-sub">Tracked from completed breathing sessions reported by the device.</p>
         </div>
 
@@ -855,7 +1134,10 @@
             <div class="exercise-card card {ex.id === breathingState.active_id ? 'selected' : ''}">
               <div class="preset-header">
                 <span class="badge type-badge">#{ex.id}</span>
-                <button class="btn-icon" on:click={() => breathingEdit(ex)} disabled={!connected} title="Edit timing">✎</button>
+                <span class="header-actions">
+                  <InfoIcon float={false} lines={insights.exerciseTip(ex)} title="When to use this" />
+                  <button class="btn-icon" on:click={() => breathingEdit(ex)} disabled={!connected} title="Edit timing">✎</button>
+                </span>
               </div>
               <h3>{ex.name}</h3>
               <p class="exercise-timing">
@@ -921,12 +1203,18 @@
           <div class="card-row">
             <div>
               <h3>Today</h3>
-              <p class="water-total">{waterState.glasses}<span class="water-goal"> / {waterState.goal}</span></p>
+              <p class="water-total">
+                {waterState.glasses}<span class="water-goal"> / {waterState.goal}</span>
+                {#if waterGoalReached}
+                  <span class="badge goal-badge">Goal reached 🎉</span>
+                {/if}
+              </p>
               <p class="card-sub">glasses of water today</p>
             </div>
             <div class="button-row">
               <button class="btn btn-icon-lg" on:click={waterRemove} disabled={!connected || waterState.glasses <= 0} title="Remove a glass">−</button>
               <button class="btn btn-icon-lg" on:click={waterAdd} disabled={!connected} title="Add a glass">+</button>
+              <InfoIcon float={false} lines={insights.waterInsight(waterState.glasses, waterState.goal)} title="Hydration & mood" />
             </div>
           </div>
           {#if connected}
@@ -978,6 +1266,35 @@
           </div>
           <p class="card-sub">Glasses logged per day (tracked in this browser).</p>
         </div>
+
+        <div class="card analysis-card">
+          <InfoIcon lines={insights.waterAnalysisInsight(waterAvgGlasses, waterGoalPct)} title="Hydration & mental health" />
+          <h3>Water Analysis</h3>
+          <div class="analytics-row">
+            <div class="analytics-stat">
+              <span class="analytics-value">{waterAvgGlasses ? waterAvgGlasses.toFixed(1) : '—'}</span>
+              <span class="analytics-label">Avg glasses / day</span>
+            </div>
+            <div class="analytics-stat">
+              <span class="analytics-value">{waterGoalDays}{#if waterActiveDays}<small> / {waterActiveDays}</small>{/if}</span>
+              <span class="analytics-label">Days meeting goal</span>
+            </div>
+            <div class="analytics-stat">
+              <span class="analytics-value">{waterGoalPct ? waterGoalPct + '%' : '—'}</span>
+              <span class="analytics-label">Goal hit rate</span>
+            </div>
+          </div>
+          {#if waterEval}
+            <div class="evaluation {waterEval.grade}">
+              <span class="eval-icon">{waterEval.grade === 'good' ? '✅' : waterEval.grade === 'ok' ? '⚠️' : waterEval.grade === 'poor' ? '❗' : '💡'}</span>
+              <div class="eval-copy">
+                <strong>{waterEval.title}</strong>
+                <p>{waterEval.text}</p>
+              </div>
+            </div>
+          {/if}
+          <p class="card-sub">Averages over the days in the selected range.</p>
+        </div>
       </div>
 
     <!-- Sleep -->
@@ -1018,7 +1335,59 @@
           <p class="card-sub">Average: {weeklySleepAvg.toFixed(1)}h / night</p>
         </div>
 
+        <div class="card">
+          <InfoIcon lines={insights.sleepGraphInsight()} title="Sleep timing & stress" />
+          <div class="card-row">
+            <h3>Sleep Window</h3>
+            <div class="range-switch">
+              <button class:active={range === '3d'} on:click={() => sleepRange('3d')}>3D</button>
+              <button class:active={range === 'week'} on:click={() => sleepRange('week')}>Week</button>
+              <button class:active={range === 'month'} on:click={() => sleepRange('month')}>Month</button>
+            </div>
+          </div>
+          <div class="window-chart">
+            <div class="window-scale">
+              <span>0:00</span><span>6:00</span><span>12:00</span><span>18:00</span><span>24:00</span>
+            </div>
+            <div class="window-rows">
+              {#each sleepWindows as n}
+                <div class="window-row">
+                  <span class="window-label">{n.label}</span>
+                  <div class="window-track">
+                    {#if n.start <= n.end}
+                      <div class="window-bar" style="left: {pct(n.start)}%; width: {pct(n.end) - pct(n.start)}%"></div>
+                    {:else}
+                      <div class="window-bar" style="left: {pct(n.start)}%; width: {pct(1440) - pct(n.start)}%"></div>
+                      <div class="window-bar" style="left: 0; width: {pct(n.end)}%"></div>
+                    {/if}
+                  </div>
+                  <span class="window-time">{fmtClock(n.start)}–{fmtClock(n.end)}</span>
+                </div>
+              {/each}
+              {#if avgBedtimeMin >= 0 && avgWakeMin >= 0}
+                <div class="window-row avg">
+                  <span class="window-label">Avg</span>
+                  <div class="window-track">
+                    {#if avgBedtimeMin <= avgWakeMin}
+                      <div class="window-bar avg-bar" style="left: {pct(avgBedtimeMin)}%; width: {pct(avgWakeMin) - pct(avgBedtimeMin)}%"></div>
+                    {:else}
+                      <div class="window-bar avg-bar" style="left: {pct(avgBedtimeMin)}%; width: {pct(1440) - pct(avgBedtimeMin)}%"></div>
+                      <div class="window-bar avg-bar" style="left: 0; width: {pct(avgWakeMin)}%"></div>
+                    {/if}
+                  </div>
+                  <span class="window-time">{fmtClock(avgBedtimeMin)}–{fmtClock(avgWakeMin)}</span>
+                </div>
+              {/if}
+              {#if sleepWindows.length === 0 && avgBedtimeMin < 0}
+                <p class="card-sub">No bedtime data yet — finish a sleep session and it will show up here.</p>
+              {/if}
+            </div>
+          </div>
+          <p class="card-sub">Each bar shows when you slept that night; the Avg row uses your average bedtime and wake time.</p>
+        </div>
+
         <div class="card analysis-card">
+          <InfoIcon lines={insights.sleepInsight(weeklySleepAvg)} title="Sleep & mental health" />
           <h3>Sleep Analysis</h3>
           <div class="analytics-row">
             <div class="analytics-stat">
@@ -1034,6 +1403,15 @@
               <span class="analytics-label">Average wake time</span>
             </div>
           </div>
+          {#if sleepEval}
+            <div class="evaluation {sleepEval.grade}">
+              <span class="eval-icon">{sleepEval.grade === 'good' ? '✅' : sleepEval.grade === 'ok' ? '⚠️' : sleepEval.grade === 'poor' ? '❗' : '💡'}</span>
+              <div class="eval-copy">
+                <strong>{sleepEval.title}</strong>
+                <p>{sleepEval.text}</p>
+              </div>
+            </div>
+          {/if}
           <p class="card-sub">Averages over the nights in the selected range.</p>
         </div>
 
@@ -1043,9 +1421,35 @@
         </div>
       </div>
 
+    <!-- Tamagotchi -->
+    {:else if activeTab === 'tamagotchi'}
+      <TamagotchiPage send={send} />
+
     <!-- Settings -->
     {:else if activeTab === 'settings'}
       <Settings {connected} settings={settingsState} />
+
+    <!-- Stretch Break -->
+    {:else if activeTab === 'sedentary'}
+      <div class="page sedentary-page">
+        <h2><img class="page-logo" src={excercizeLogo} alt="Stretch Break" /> Stretch Break</h2>
+
+        <div class="card">
+          <div class="card-row">
+            <div>
+              <h3>Status</h3>
+              <p class="card-sub">Stretch break control is device-only — this panel monitors sessions.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <InfoIcon lines={insights.stretchBreakInsight ? insights.stretchBreakInsight() : ['Take regular stretch breaks to reduce sedentary time and improve focus.']} title="Stretch breaks & health" />
+          <h3>Why Stretch?</h3>
+          <p>Sitting for long periods reduces blood flow and increases tension. Regular stretch breaks help maintain focus, reduce stiffness, and protect against burnout.</p>
+          <p class="card-sub">Default interval: 60 min · Daily cap: 5 breaks · +10 seeds per break</p>
+        </div>
+      </div>
     {/if}
   </main>
 
@@ -1645,6 +2049,51 @@
     color: var(--color-text-muted);
   }
 
+  .evaluation {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    margin-top: 0.75rem;
+    padding: 0.7rem 0.8rem;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: var(--color-text-secondary);
+  }
+
+  .evaluation.good {
+    border-color: var(--color-success);
+    background: color-mix(in srgb, var(--color-success) 12%, transparent);
+  }
+
+  .evaluation.ok {
+    border-color: var(--color-warning);
+    background: color-mix(in srgb, var(--color-warning) 12%, transparent);
+  }
+
+  .evaluation.poor {
+    border-color: var(--color-error);
+    background: color-mix(in srgb, var(--color-error) 12%, transparent);
+  }
+
+  .eval-icon {
+    font-size: 1rem;
+    line-height: 1.2;
+    flex-shrink: 0;
+  }
+
+  .eval-copy strong {
+    display: block;
+    color: var(--color-text);
+    margin-bottom: 0.2rem;
+  }
+
+  .eval-copy p {
+    margin: 0;
+  }
+
   .badge.running {
     background: var(--color-success, #5E9F72);
     color: #fff;
@@ -1672,6 +2121,99 @@
   }
 
   /* Bar charts */
+  .page-head {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+  }
+
+  .page-head h2 {
+    margin-bottom: 0;
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .goal-badge {
+    background: var(--color-success, #5E9F72);
+    color: #fff;
+    margin-left: 0.5rem;
+  }
+
+  .analytics-value small {
+    font-size: 0.7rem;
+    font-weight: 400;
+    color: var(--color-text-muted);
+  }
+
+  .window-chart {
+    margin-top: 0.5rem;
+  }
+
+  .window-scale {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    color: var(--color-text-muted);
+    margin-bottom: 0.35rem;
+  }
+
+  .window-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .window-row {
+    display: grid;
+    grid-template-columns: 44px 1fr 74px;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .window-label {
+    font-size: 0.7rem;
+    color: var(--color-text-secondary);
+    text-align: right;
+  }
+
+  .window-track {
+    position: relative;
+    height: 14px;
+    border-radius: 999px;
+    background: var(--color-surface);
+    overflow: hidden;
+  }
+
+  .window-bar {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    background: var(--color-timer, #E0A84C);
+    border-radius: 999px;
+  }
+
+  .window-row.avg .window-bar {
+    background: var(--color-primary);
+  }
+
+  .window-row.avg .window-label {
+    font-weight: 600;
+    color: var(--color-text);
+  }
+
+  .window-time {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    color: var(--color-text-muted);
+  }
+
   .bar-chart {
     display: flex;
     align-items: flex-end;

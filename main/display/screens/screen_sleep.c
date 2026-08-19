@@ -189,6 +189,24 @@ static void format_duration(char *buf, size_t len, uint16_t minutes)
     }
 }
 
+static void format_hours_brief(char *buf, size_t len, float hours)
+{
+    if (hours <= 0.0f) {
+        snprintf(buf, len, "0h 0m");
+        return;
+    }
+    int total_min = (int)(hours * 60.0f + 0.5f);
+    int h = total_min / 60;
+    int m = total_min % 60;
+    if (h > 0 && m > 0) {
+        snprintf(buf, len, "%dh %dm", h, m);
+    } else if (h > 0) {
+        snprintf(buf, len, "%dh", h);
+    } else {
+        snprintf(buf, len, "%dm", m);
+    }
+}
+
 static void cleanup_screen(void)
 {
     if (clock_timer) {
@@ -435,7 +453,9 @@ static void transition_to_summary(void)
 
     float avg = sleep_store_get_weekly_avg_hours();
     if (avg > 0) {
-        lv_label_set_text_fmt(lbl_sub, "Weekly avg: %.1f hrs", avg);
+        char avg_buf[24];
+        format_hours_brief(avg_buf, sizeof(avg_buf), avg);
+        lv_label_set_text_fmt(lbl_sub, "Weekly avg: %s", avg_buf);
     } else {
         lv_label_set_text(lbl_sub, "Start building your sleep history!");
     }
@@ -460,7 +480,9 @@ static void transition_to_weekly(void)
     prev_focus_index = -1;
 
     float avg = sleep_store_get_weekly_avg_hours();
-    lv_label_set_text_fmt(lbl_weekly_avg, "%.1f hrs", avg);
+    char avg_buf[24];
+    format_hours_brief(avg_buf, sizeof(avg_buf), avg);
+    lv_label_set_text(lbl_weekly_avg, avg_buf);
 
     if (avg >= 7.0f) {
         lv_label_set_text(lbl_weekly_msg, "Great consistency this week!");
@@ -729,7 +751,7 @@ lv_obj_t *screen_sleep_create(void)
     lv_obj_add_flag(lbl_weekly_header, LV_OBJ_FLAG_HIDDEN);
 
     lbl_weekly_avg = lv_label_create(screen);
-    lv_label_set_text(lbl_weekly_avg, "0.0 hrs");
+    lv_label_set_text(lbl_weekly_avg, "0h 0m");
     lv_obj_set_style_text_font(lbl_weekly_avg, &lv_font_montserrat_36, 0);
     lv_obj_set_style_text_color(lbl_weekly_avg, LV_COLOR_TEXT, 0);
     lv_obj_align(lbl_weekly_avg, LV_ALIGN_TOP_MID, 0, 65);

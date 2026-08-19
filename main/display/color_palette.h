@@ -63,6 +63,20 @@ static inline lv_color_t darken_color(lv_color_t c, float amount)
     return lv_color_make(r, g, b);
 }
 
+/* Desaturate a color by blending it toward gray (amount 0..1).
+ * Hue stays the same, so it mutes harsh/bright accents. */
+static inline lv_color_t desaturate_color(lv_color_t c, float amount)
+{
+    uint32_t r = color_get_r8(c);
+    uint32_t g = color_get_g8(c);
+    uint32_t b = color_get_b8(c);
+    uint32_t lum = (uint32_t)(0.299f * r + 0.587f * g + 0.114f * b);
+    r = r + (uint32_t)((lum - r) * amount);
+    g = g + (uint32_t)((lum - g) * amount);
+    b = b + (uint32_t)((lum - b) * amount);
+    return lv_color_make((uint8_t)r, (uint8_t)g, (uint8_t)b);
+}
+
 static inline lv_color_t pastel_color(lv_color_t c)
 {
     float r = color_get_r8(c);

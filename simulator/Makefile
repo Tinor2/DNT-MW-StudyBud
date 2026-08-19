@@ -192,6 +192,30 @@ SDL_Driver.c.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/sdl_driver.dir/build.make CMakeFiles/sdl_driver.dir/SDL_Driver.c.s
 .PHONY : SDL_Driver.c.s
 
+ST7701S_stub.o: ST7701S_stub.c.o
+.PHONY : ST7701S_stub.o
+
+# target to build an object file
+ST7701S_stub.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/sdl_driver.dir/build.make CMakeFiles/sdl_driver.dir/ST7701S_stub.c.o
+.PHONY : ST7701S_stub.c.o
+
+ST7701S_stub.i: ST7701S_stub.c.i
+.PHONY : ST7701S_stub.i
+
+# target to preprocess a source file
+ST7701S_stub.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/sdl_driver.dir/build.make CMakeFiles/sdl_driver.dir/ST7701S_stub.c.i
+.PHONY : ST7701S_stub.c.i
+
+ST7701S_stub.s: ST7701S_stub.c.s
+.PHONY : ST7701S_stub.s
+
+# target to generate assembly for a file
+ST7701S_stub.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/sdl_driver.dir/build.make CMakeFiles/sdl_driver.dir/ST7701S_stub.c.s
+.PHONY : ST7701S_stub.c.s
+
 Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/app_logo.o: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/app_logo.c.o
 .PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/app_logo.o
 
@@ -263,6 +287,78 @@ Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/idle_bg_tree.s: Users/ro
 Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/idle_bg_tree.c.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/idle_bg_tree.c.s
 .PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/idle_bg_tree.c.s
+
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_1.o: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_1.c.o
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_1.o
+
+# target to build an object file
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_1.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_1.c.o
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_1.c.o
+
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_1.i: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_1.c.i
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_1.i
+
+# target to preprocess a source file
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_1.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_1.c.i
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_1.c.i
+
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_1.s: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_1.c.s
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_1.s
+
+# target to generate assembly for a file
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_1.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_1.c.s
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_1.c.s
+
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_2.o: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_2.c.o
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_2.o
+
+# target to build an object file
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_2.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_2.c.o
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_2.c.o
+
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_2.i: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_2.c.i
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_2.i
+
+# target to preprocess a source file
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_2.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_2.c.i
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_2.c.i
+
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_2.s: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_2.c.s
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_2.s
+
+# target to generate assembly for a file
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_2.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_2.c.s
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_2.c.s
+
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/sleeping_logo.o: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/sleeping_logo.c.o
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/sleeping_logo.o
+
+# target to build an object file
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/sleeping_logo.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/sleeping_logo.c.o
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/sleeping_logo.c.o
+
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/sleeping_logo.i: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/sleeping_logo.c.i
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/sleeping_logo.i
+
+# target to preprocess a source file
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/sleeping_logo.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/sleeping_logo.c.i
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/sleeping_logo.c.i
+
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/sleeping_logo.s: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/sleeping_logo.c.s
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/sleeping_logo.s
+
+# target to generate assembly for a file
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/sleeping_logo.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/sleeping_logo.c.s
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/sleeping_logo.c.s
 
 Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/tamagotchi_logo.o: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/tamagotchi_logo.c.o
 .PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/tamagotchi_logo.o
@@ -455,6 +551,54 @@ Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_menu.s: 
 Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_menu.c.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_menu.c.s
 .PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_menu.c.s
+
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_sedentary.o: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_sedentary.c.o
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_sedentary.o
+
+# target to build an object file
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_sedentary.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_sedentary.c.o
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_sedentary.c.o
+
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_sedentary.i: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_sedentary.c.i
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_sedentary.i
+
+# target to preprocess a source file
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_sedentary.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_sedentary.c.i
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_sedentary.c.i
+
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_sedentary.s: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_sedentary.c.s
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_sedentary.s
+
+# target to generate assembly for a file
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_sedentary.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_sedentary.c.s
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_sedentary.c.s
+
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_settings.o: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_settings.c.o
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_settings.o
+
+# target to build an object file
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_settings.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_settings.c.o
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_settings.c.o
+
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_settings.i: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_settings.c.i
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_settings.i
+
+# target to preprocess a source file
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_settings.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_settings.c.i
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_settings.c.i
+
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_settings.s: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_settings.c.s
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_settings.s
+
+# target to generate assembly for a file
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_settings.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_settings.c.s
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_settings.c.s
 
 Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_sleep.o: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_sleep.c.o
 .PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_sleep.o
@@ -671,6 +815,30 @@ Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/points_store.s: U
 Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/points_store.c.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/points_store.c.s
 .PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/points_store.c.s
+
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/sedentary_store.o: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/sedentary_store.c.o
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/sedentary_store.o
+
+# target to build an object file
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/sedentary_store.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/sedentary_store.c.o
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/sedentary_store.c.o
+
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/sedentary_store.i: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/sedentary_store.c.i
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/sedentary_store.i
+
+# target to preprocess a source file
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/sedentary_store.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/sedentary_store.c.i
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/sedentary_store.c.i
+
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/sedentary_store.s: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/sedentary_store.c.s
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/sedentary_store.s
+
+# target to generate assembly for a file
+Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/sedentary_store.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/studybud_screens.dir/build.make CMakeFiles/studybud_screens.dir/Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/sedentary_store.c.s
+.PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/sedentary_store.c.s
 
 Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/session_store.o: Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/session_store.c.o
 .PHONY : Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/session_store.o
@@ -4839,6 +5007,9 @@ help:
 	@echo "... SDL_Driver.o"
 	@echo "... SDL_Driver.i"
 	@echo "... SDL_Driver.s"
+	@echo "... ST7701S_stub.o"
+	@echo "... ST7701S_stub.i"
+	@echo "... ST7701S_stub.s"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/app_logo.o"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/app_logo.i"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/app_logo.s"
@@ -4848,6 +5019,15 @@ help:
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/idle_bg_tree.o"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/idle_bg_tree.i"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/idle_bg_tree.s"
+	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_1.o"
+	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_1.i"
+	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_1.s"
+	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_2.o"
+	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_2.i"
+	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/plant_stage_2.s"
+	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/sleeping_logo.o"
+	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/sleeping_logo.i"
+	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/sleeping_logo.s"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/tamagotchi_logo.o"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/tamagotchi_logo.i"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/assets/tamagotchi_logo.s"
@@ -4872,6 +5052,12 @@ help:
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_menu.o"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_menu.i"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_menu.s"
+	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_sedentary.o"
+	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_sedentary.i"
+	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_sedentary.s"
+	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_settings.o"
+	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_settings.i"
+	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_settings.s"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_sleep.o"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_sleep.i"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/screens/screen_sleep.s"
@@ -4899,6 +5085,9 @@ help:
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/points_store.o"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/points_store.i"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/points_store.s"
+	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/sedentary_store.o"
+	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/sedentary_store.i"
+	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/sedentary_store.s"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/session_store.o"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/session_store.i"
 	@echo "... Users/ronitbhandari/Desktop/DNT-MW-StudyBud/main/display/utils/session_store.s"

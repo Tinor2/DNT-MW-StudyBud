@@ -93,10 +93,61 @@ void sdl_driver_present(void)
     }
 }
 
+void sdl_driver_screenshot(const char *path)
+{
+    if (!buf1) return;
+    FILE *f = fopen(path, "wb");
+    if (!f) {
+        fprintf(stderr, "[SDL] screenshot: cannot open %s\n", path);
+        return;
+    }
+
+    int w = SIM_LCD_H_RES;
+    int h = SIM_LCD_V_RES;
+    uint32_t row_size = (uint32_t)w * 3;
+    uint32_t data_size = row_size * (uint32_t)h;
+    uint32_t file_size = 54 + data_size;
+
+    uint8_t hdr[54] = {0};
+    hdr[0] = 'B'; hdr[1] = 'M';
+    hdr[2] = (uint8_t)file_size; hdr[3] = (uint8_t)(file_size >> 8);
+    hdr[4] = (uint8_t)(file_size >> 16); hdr[5] = (uint8_t)(file_size >> 24);
+    hdr[10] = 54;
+    hdr[14] = 40;
+    hdr[18] = (uint8_t)w; hdr[19] = (uint8_t)(w >> 8);
+    hdr[20] = (uint8_t)(w >> 16); hdr[21] = (uint8_t)(w >> 24);
+    hdr[22] = (uint8_t)h; hdr[23] = (uint8_t)(h >> 8);
+    hdr[24] = (uint8_t)(h >> 16); hdr[25] = (uint8_t)(h >> 24);
+    hdr[26] = 1;
+    hdr[28] = 24;
+    hdr[34] = data_size;
+    fwrite(hdr, 1, 54, f);
+
+    uint8_t *row = (uint8_t *)malloc(row_size);
+    for (int y = h - 1; y >= 0; y--) {
+        for (int x = 0; x < w; x++) {
+            uint32_t c = lv_color_to32(buf1[y * w + x]);
+            row[x * 3 + 0] = (uint8_t)c;
+            row[x * 3 + 1] = (uint8_t)(c >> 8);
+            row[x * 3 + 2] = (uint8_t)(c >> 16);
+        }
+        fwrite(row, 1, row_size, f);
+    }
+    free(row);
+    fclose(f);
+    printf("[SDL] screenshot saved: %s\n", path);
+}
+
 static int enc_diff = 0;
 static bool enc_pressed = false;
 static bool enc_released = false;
 static bool button_is_down = false;
+static bool script_mode = false;
+
+void sdl_driver_set_script_mode(bool active)
+{
+    script_mode = active;
+}
 
 static void sdl_encoder_read(lv_indev_drv_t *drv, lv_indev_data_t *data)
 {
@@ -123,6 +174,9 @@ static void sdl_encoder_read(lv_indev_drv_t *drv, lv_indev_data_t *data)
                     case SDLK_ESCAPE:
                     case SDLK_q:
                         exit(0);
+                        break;
+                    case SDLK_s:
+                        sdl_driver_screenshot("/tmp/studybud_frame.bmp");
                         break;
                     default:
                         break;
@@ -160,7 +214,9 @@ static void sdl_encoder_read(lv_indev_drv_t *drv, lv_indev_data_t *data)
         data->state = button_is_down ? LV_INDEV_STATE_PR : LV_INDEV_STATE_REL;
     }
 
-    ui_manager_encoder_event(data);
+    if (!script_mode) {
+        ui_manager_encoder_event(data);
+    }
 }
 
 void sdl_driver_init(void)

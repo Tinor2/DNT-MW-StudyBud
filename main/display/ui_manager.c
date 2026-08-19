@@ -11,6 +11,8 @@
 #include "screens/screen_tamagotchi.h"
 #include "screens/screen_water.h"
 #include "screens/screen_settings.h"
+#include "screens/screen_sedentary.h"
+#include "../utils/sedentary_store.h"
 #include "app_state.h"
 #include "studybud_theme.h"
 #include "color_palette.h"
@@ -32,6 +34,9 @@ static void (*screen_event_handlers[SCREEN_COUNT])(lv_indev_data_t *) = {0};
 #define GLOW_THICKNESS 25
 #define GLOW_INNER_R  (GLOW_OUTER_R - GLOW_THICKNESS)
 
+#define READING_MAX_OPA 90
+#define READING_LIGHT_COLOR lv_color_hex(0xFFA93D)
+
 static uint32_t press_start_tick = 0;
 static bool waiting_for_release = false;
 static bool long_press_fired = false;
@@ -40,6 +45,9 @@ static lv_obj_t *glow_overlay = NULL;
 static lv_timer_t *glow_timer = NULL;
 
 static lv_obj_t *nav_bubble = NULL;
+
+static lv_obj_t *reading_overlay = NULL;
+static volatile int pending_reading_light = -1;
 
 /* Re-tint the glow ring and nav bubble with the accent of the current app */
 static void update_glow_color(void)
@@ -164,6 +172,209 @@ static void create_nav_bubble(void)
     lv_obj_set_style_opa(nav_bubble, LV_OPA_TRANSP, 0);
 }
 
+void ui_manager_set_reading_light(int strength)
+{
+    if (strength < 0) strength = 0;
+    if (strength > 100) strength = 100;
+    pending_reading_light = strength;
+}
+
+static void apply_reading_light(int strength)
+{
+    if (strength == 0) {
+        if (reading_overlay) {
+            lv_obj_add_flag(reading_overlay, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_style_bg_opa(reading_overlay, LV_OPA_TRANSP, 0);
+        }
+        return;
+    }
+
+    if (!reading_overlay) {
+        reading_overlay = lv_obj_create(lv_layer_top());
+        lv_obj_set_size(reading_overlay, DISPLAY_SIZE, DISPLAY_SIZE);
+        lv_obj_align(reading_overlay, LV_ALIGN_CENTER, 0, 0);
+        lv_obj_set_style_radius(reading_overlay, 0, 0);
+        lv_obj_set_style_bg_color(reading_overlay, READING_LIGHT_COLOR, 0);
+        lv_obj_set_style_border_width(reading_overlay, 0, 0);
+        lv_obj_set_style_shadow_width(reading_overlay, 0, 0);
+        lv_obj_set_style_pad_all(reading_overlay, 0, 0);
+        lv_obj_clear_flag(reading_overlay, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_clear_flag(reading_overlay, LV_OBJ_FLAG_SCROLLABLE);
+    }
+
+    lv_obj_clear_flag(reading_overlay, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_move_foreground(reading_overlay);
+    lv_opa_t opa = (lv_opa_t)((uint32_t)strength * READING_MAX_OPA / 100);
+    lv_obj_set_style_bg_opa(reading_overlay, opa, 0);
+}
+
+/* Applied on the LVGL thread so the web-server task never touches LVGL directly */
+static void reading_light_timer_cb(lv_timer_t *timer)
+{
+    (void)timer;
+    int v = pending_reading_light;
+    if (v < 0) return;
+    pending_reading_light = -1;
+    apply_reading_light(v);
+}
+
+/* ============================================================ */
+/* Stretch Break alert popup                                     */
+/* ============================================================ */
+
+static lv_obj_t *alert_overlay = NULL;
+static lv_obj_t *alert_card = NULL;
+static lv_obj_t *alert_btn_snooze = NULL;
+static lv_obj_t *alert_btn_break = NULL;
+static int alert_focus = 0;
+
+static void alert_update_focus(void);
+
+static void alert_anim_set_border(void *var, int32_t val)
+{
+    if (var) lv_obj_set_style_border_width((lv_obj_t *)var, val, 0);
+}
+
+static void alert_anim_border(lv_obj_t *obj, int32_t from, int32_t to)
+{
+    if (!obj) return;
+    lv_anim_del(obj, (lv_anim_exec_xcb_t)alert_anim_set_border);
+    lv_anim_t a;
+    lv_anim_init(&a);
+    lv_anim_set_var(&a, obj);
+    lv_anim_set_exec_cb(&a, (lv_anim_exec_xcb_t)alert_anim_set_border);
+    lv_anim_set_values(&a, from, to);
+    lv_anim_set_time(&a, 200);
+    lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
+    lv_anim_start(&a);
+}
+
+static void create_alert_popup(void)
+{
+    lv_obj_t *top = lv_layer_top();
+
+    alert_overlay = lv_obj_create(top);
+    lv_obj_set_size(alert_overlay, DISPLAY_SIZE, DISPLAY_SIZE);
+    lv_obj_align(alert_overlay, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_style_radius(alert_overlay, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(alert_overlay, LV_COLOR_BG, 0);
+    lv_obj_set_style_bg_opa(alert_overlay, LV_OPA_60, 0);
+    lv_obj_set_style_border_width(alert_overlay, 0, 0);
+    lv_obj_set_style_pad_all(alert_overlay, 0, 0);
+    lv_obj_clear_flag(alert_overlay, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(alert_overlay, LV_OBJ_FLAG_HIDDEN);
+
+    alert_card = lv_obj_create(alert_overlay);
+    lv_obj_set_size(alert_card, 360, 260);
+    lv_obj_align(alert_card, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_style_radius(alert_card, 24, 0);
+    lv_obj_set_style_bg_color(alert_card, LV_COLOR_BG_CARD, 0);
+    lv_obj_set_style_border_width(alert_card, 0, 0);
+    lv_obj_set_style_shadow_width(alert_card, 0, 0);
+    lv_obj_set_style_pad_all(alert_card, 20, 0);
+    lv_obj_clear_flag(alert_card, LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_t *title = lv_label_create(alert_card);
+    lv_label_set_text(title, "Time to move!");
+    lv_obj_set_style_text_font(title, &lv_font_montserrat_20, 0);
+    lv_obj_set_style_text_color(title, LV_COLOR_TEXT, 0);
+    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 10);
+
+    lv_obj_t *sub = lv_label_create(alert_card);
+    lv_label_set_text(sub, "You've been sitting for 60 min");
+    lv_obj_set_style_text_font(sub, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(sub, LV_COLOR_TEXT_SECONDARY, 0);
+    lv_obj_align(sub, LV_ALIGN_TOP_MID, 0, 44);
+
+    alert_btn_snooze = lv_btn_create(alert_card);
+    lv_obj_set_size(alert_btn_snooze, 150, 54);
+    lv_obj_align(alert_btn_snooze, LV_ALIGN_BOTTOM_LEFT, 20, -20);
+    lv_obj_set_style_radius(alert_btn_snooze, 27, 0);
+    lv_obj_set_style_bg_color(alert_btn_snooze, LV_COLOR_SURFACE, 0);
+    lv_obj_set_style_shadow_width(alert_btn_snooze, 0, 0);
+    lv_obj_set_style_shadow_opa(alert_btn_snooze, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(alert_btn_snooze, 0, 0);
+    lv_obj_set_style_border_color(alert_btn_snooze, theme_accent(SCREEN_SEDENTARY), 0);
+    lv_obj_set_style_pad_all(alert_btn_snooze, 0, 0);
+
+    lv_obj_t *snooze_lbl = lv_label_create(alert_btn_snooze);
+    lv_label_set_text(snooze_lbl, "Snooze (10m)");
+    lv_obj_set_style_text_font(snooze_lbl, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_color(snooze_lbl, LV_COLOR_TEXT, 0);
+    lv_obj_center(snooze_lbl);
+
+    alert_btn_break = lv_btn_create(alert_card);
+    lv_obj_set_size(alert_btn_break, 150, 54);
+    lv_obj_align(alert_btn_break, LV_ALIGN_BOTTOM_RIGHT, -20, -20);
+    lv_obj_set_style_radius(alert_btn_break, 27, 0);
+    lv_obj_set_style_bg_color(alert_btn_break, theme_accent(SCREEN_SEDENTARY), 0);
+    lv_obj_set_style_shadow_width(alert_btn_break, 0, 0);
+    lv_obj_set_style_shadow_opa(alert_btn_break, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(alert_btn_break, 0, 0);
+    lv_obj_set_style_border_color(alert_btn_break, LV_COLOR_BG_CARD, 0);
+    lv_obj_set_style_pad_all(alert_btn_break, 0, 0);
+
+    lv_obj_t *break_lbl = lv_label_create(alert_btn_break);
+    lv_label_set_text(break_lbl, "Start Break");
+    lv_obj_set_style_text_font(break_lbl, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_color(break_lbl, LV_COLOR_BG_CARD, 0);
+    lv_obj_center(break_lbl);
+
+    alert_focus = 0;
+    alert_update_focus();
+}
+
+static void alert_update_focus(void)
+{
+    if (!alert_overlay) return;
+    for (int i = 0; i < 2; i++) {
+        lv_obj_t *btn = (i == 0) ? alert_btn_snooze : alert_btn_break;
+        if (!btn) continue;
+        bool focused = (i == alert_focus);
+        lv_color_t accent = theme_accent(SCREEN_SEDENTARY);
+        lv_color_t bg = focused ? accent : LV_COLOR_SURFACE;
+        lv_obj_set_style_bg_color(btn, bg, 0);
+        alert_anim_border(btn,
+            lv_obj_get_style_border_width(btn, 0),
+            focused ? 3 : 0);
+    }
+}
+
+static void alert_show(void)
+{
+    if (!alert_overlay) create_alert_popup();
+    sedentary_state_t *sed = sedentary_store_get_state();
+    alert_focus = 0;
+    alert_update_focus();
+    lv_obj_clear_flag(alert_overlay, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_move_foreground(alert_overlay);
+    ESP_LOGI(TAG, "Sedentary alert shown (interval %d min)", sed->interval_min);
+}
+
+static void alert_hide(void)
+{
+    if (alert_overlay) lv_obj_add_flag(alert_overlay, LV_OBJ_FLAG_HIDDEN);
+}
+
+static bool alert_is_showing(void)
+{
+    return alert_overlay && !lv_obj_has_flag(alert_overlay, LV_OBJ_FLAG_HIDDEN);
+}
+
+static void sedentary_tick_cb(lv_timer_t *timer)
+{
+    (void)timer;
+    sedentary_store_tick();
+
+    if (sedentary_store_consume_alert()) {
+        alert_show();
+    }
+
+    if (current_screen == SCREEN_SEDENTARY) {
+        screen_sedentary_refresh();
+    }
+}
+
 static void timer_background_cb(lv_timer_t *timer)
 {
     (void)timer;
@@ -192,6 +403,10 @@ void ui_manager_init(void)
     /* Create navigation bubble (on top layer, above all screens) */
     create_nav_bubble();
 
+    /* Reading light: applied on the LVGL thread via a poll timer */
+    lv_timer_create(reading_light_timer_cb, 100, NULL);
+    apply_reading_light(app_state_get()->settings.reading_light);
+
     /* Create all screens (menu first to populate accent colors) */
     screens[SCREEN_MENU] = screen_menu_create();
     screens[SCREEN_HOME] = screen_home_create();
@@ -204,6 +419,7 @@ void ui_manager_init(void)
     screens[SCREEN_TIMER] = screen_timer_create();
     screens[SCREEN_TAMAGOTCHI] = screen_tamagotchi_create();
     screens[SCREEN_WATER] = screen_water_create();
+    screens[SCREEN_SEDENTARY] = screen_sedentary_create();
     screens[SCREEN_SETTINGS] = screen_settings_create();
 
     /* Register event handlers */
@@ -218,6 +434,7 @@ void ui_manager_init(void)
     screen_event_handlers[SCREEN_TIMER] = screen_timer_encoder_event;
     screen_event_handlers[SCREEN_TAMAGOTCHI] = screen_tamagotchi_encoder_event;
     screen_event_handlers[SCREEN_WATER] = screen_water_encoder_event;
+    screen_event_handlers[SCREEN_SEDENTARY] = screen_sedentary_encoder_event;
     screen_event_handlers[SCREEN_SETTINGS] = screen_settings_encoder_event;
 
     /* Load home screen as default */
@@ -228,6 +445,9 @@ void ui_manager_init(void)
     /* Persistent background timer so a running timer keeps counting (and
        broadcasting) even when the user navigates away from the timer screen */
     lv_timer_create(timer_background_cb, 1000, NULL);
+
+    /* Persistent background timer for the stretch-break countdown + alerts */
+    lv_timer_create(sedentary_tick_cb, 1000, NULL);
 
     ESP_LOGI(TAG, "UI Manager initialized, showing Home screen");
 }
@@ -261,6 +481,12 @@ void ui_manager_switch_screen(screen_id_t screen)
     case SCREEN_SETTINGS:
         screen_settings_refresh();
         break;
+    case SCREEN_TAMAGOTCHI:
+        screen_tamagotchi_refresh();
+        break;
+    case SCREEN_SEDENTARY:
+        screen_sedentary_refresh();
+        break;
     default:
         break;
     }
@@ -278,6 +504,30 @@ void ui_manager_switch_screen(screen_id_t screen)
 
 void ui_manager_encoder_event(lv_indev_data_t *data)
 {
+    /* Alert popup (Stretch Break) fully intercepts the encoder while shown */
+    if (alert_is_showing()) {
+        if (data->enc_diff != 0) {
+            alert_focus += data->enc_diff;
+            if (alert_focus < 0) alert_focus = 1;
+            if (alert_focus > 1) alert_focus = 0;
+            alert_update_focus();
+            app_state_broadcast_encoder_event(data->enc_diff > 0 ? "cw" : "ccw", "none");
+        }
+        if (data->state == LV_INDEV_STATE_PR && data->enc_diff == 0) {
+            if (alert_focus == 0) {
+                app_state_broadcast_encoder_event("none", "press");
+                sedentary_store_snooze();
+                alert_hide();
+            } else {
+                app_state_broadcast_encoder_event("none", "press");
+                alert_hide();
+                sedentary_store_enter_break();
+                ui_manager_switch_screen(SCREEN_SEDENTARY);
+            }
+        }
+        return;
+    }
+
     /* Forward rotation immediately, even while button is held */
     if (data->enc_diff != 0 && screen_event_handlers[current_screen]) {
         app_state_broadcast_encoder_event(data->enc_diff > 0 ? "cw" : "ccw", "none");

@@ -7,6 +7,7 @@
 static uint32_t start_timestamp = 0;
 static uint32_t last_start_timestamp = 0;
 static uint16_t history[MAX_HISTORY];
+static int16_t history_start_min[MAX_HISTORY];
 static int history_count = 0;
 
 static int day_bucket_for_timestamp(time_t ts)
@@ -26,13 +27,21 @@ void sleep_store_init(void)
     start_timestamp = 0;
     history_count = 0;
     memset(history, 0, sizeof(history));
+    for (int i = 0; i < MAX_HISTORY; i++) history_start_min[i] = -1;
+}
+
+bool sleep_store_is_active(void)
+{
+    return start_timestamp != 0;
 }
 
 void sleep_store_seed_demo(void)
 {
     if (history_count > 0) return;
     static const uint16_t demo[6] = { 400, 430, 480, 360, 470, 420 };
+    static const int16_t demo_start[6] = { 1380, 1410, 1350, 1390, 1420, 1360 };
     memcpy(history, demo, sizeof(demo));
+    memcpy(history_start_min, demo_start, sizeof(demo_start));
     history_count = 6;
 }
 
@@ -61,17 +70,20 @@ uint32_t sleep_store_end_session(void)
     uint32_t duration_secs = (uint32_t)now - start_timestamp;
     uint16_t duration_mins = (uint16_t)(duration_secs / 60);
 
+    struct tm start_tm;
+    localtime_r((time_t *)(&start_timestamp), &start_tm);
+    int16_t start_hour_min = (int16_t)(start_tm.tm_hour * 60 + start_tm.tm_min);
+
     int start_bucket = day_bucket_for_timestamp((time_t)start_timestamp);
     int end_bucket = day_bucket_for_timestamp(now);
 
     if (start_bucket == end_bucket) {
         if (history_count < MAX_HISTORY) {
             history[history_count] = duration_mins;
+            history_start_min[history_count] = start_hour_min;
             history_count++;
         }
     } else {
-        struct tm start_tm;
-        localtime_r((time_t *)(&start_timestamp), &start_tm);
         uint32_t noon_secs;
         if (start_tm.tm_hour < 12) {
             struct tm yesterday_noon = start_tm;
@@ -94,10 +106,12 @@ uint32_t sleep_store_end_session(void)
 
         if (history_count < MAX_HISTORY) {
             history[history_count] = first_part;
+            history_start_min[history_count] = start_hour_min;
             history_count++;
         }
         if (history_count < MAX_HISTORY) {
             history[history_count] = second_part;
+            history_start_min[history_count] = start_hour_min;
             history_count++;
         }
     }
@@ -132,6 +146,29 @@ void sleep_store_set_history(const uint16_t minutes[7], int count)
     history_count = count;
     for (int i = 0; i < count; i++) {
         history[i] = minutes[i];
+        history_start_min[i] = -1;
+    }
+}
+
+void sleep_store_set_history_entries(const uint16_t minutes[7], const int16_t start_min[7], int count)
+{
+    if (count > MAX_HISTORY) count = MAX_HISTORY;
+    history_count = count;
+    for (int i = 0; i < count; i++) {
+        history[i] = minutes[i];
+        history_start_min[i] = (start_min && start_min[i] >= 0) ? start_min[i] : -1;
+    }
+}
+
+void sleep_store_get_last_7_entries(uint16_t out_minutes[7], int16_t out_start_min[7])
+{
+    memset(out_minutes, 0, 7 * sizeof(uint16_t));
+    for (int i = 0; i < MAX_HISTORY; i++) out_start_min[i] = -1;
+    int start_idx = (history_count > MAX_HISTORY) ? (history_count - MAX_HISTORY) : 0;
+    int count = (history_count > MAX_HISTORY) ? MAX_HISTORY : history_count;
+    for (int i = 0; i < count; i++) {
+        out_minutes[i] = history[start_idx + i];
+        out_start_min[i] = history_start_min[start_idx + i];
     }
 }
 

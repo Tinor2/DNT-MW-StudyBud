@@ -1,4 +1,5 @@
 #include "../display/app_state.h"
+#include "../display/ui_manager.h"
 #include "../display/utils/persistence.h"
 #include "../display/utils/sleep_store.h"
 #include "../display/utils/session_store.h"
@@ -106,6 +107,7 @@ void app_state_init(ws_broadcast_fn broadcaster)
     s_state.settings.brightness = 80;
     s_state.settings.volume = 40;
     s_state.settings.idle_timeout = 60;
+    s_state.settings.reading_light = 0;
 
     ESP_LOGI(TAG, "App state initialized");
 }
@@ -511,10 +513,11 @@ void app_state_broadcast_settings_sync(void)
     if (!s_broadcast) return;
     char *msg = broadcast_lock();
     snprintf(msg, MAX_BROADCAST,
-             "{\"type\":\"settings_sync\",\"brightness\":%d,\"volume\":%d,\"idle_timeout\":%d}",
+             "{\"type\":\"settings_sync\",\"brightness\":%d,\"volume\":%d,\"idle_timeout\":%d,\"reading_light\":%d}",
              s_state.settings.brightness,
              s_state.settings.volume,
-             s_state.settings.idle_timeout);
+             s_state.settings.idle_timeout,
+             s_state.settings.reading_light);
     s_broadcast(msg);
     broadcast_unlock();
 }
@@ -578,7 +581,7 @@ void app_state_send_full_sync(char *resp, size_t resp_len)
                     "\"water\":{\"glasses\":%d,\"goal\":%d},"
                     "\"timer\":{\"remaining_ms\":%ld,\"running\":%s,\"preset_id\":%d,\"phase\":%d,"
                     "\"phase_name\":\"%s\",\"is_pomodoro\":%s,\"total_ms\":%ld,\"phase_complete\":%s},"
-                    "\"settings\":{\"brightness\":%d,\"volume\":%d,\"idle_timeout\":%d},"
+                    "\"settings\":{\"brightness\":%d,\"volume\":%d,\"idle_timeout\":%d,\"reading_light\":%d},"
                     "\"current_screen\":%d,\"screen\":\"%s\","
                     "\"points\":{",
                     s_state.active_preset_id,
@@ -594,6 +597,7 @@ void app_state_send_full_sync(char *resp, size_t resp_len)
                     s_state.settings.brightness,
                     s_state.settings.volume,
                     s_state.settings.idle_timeout,
+                    s_state.settings.reading_light,
                     s_state.current_screen,
                     (s_state.current_screen >= 0 && s_state.current_screen < SCREEN_NAMES_COUNT)
                         ? screen_names[s_state.current_screen] : "unknown");
@@ -895,12 +899,20 @@ static void handle_settings_update(const char *json, char *resp, size_t resp_len
     if (v_pos) s_state.settings.volume = atoi(v_pos);
     const char *i_pos = find_field(json, "idle_timeout");
     if (i_pos)     s_state.settings.idle_timeout = atoi(i_pos);
+    const char *r_pos = find_field(json, "reading_light");
+    if (r_pos) {
+        s_state.settings.reading_light = atoi(r_pos);
+        if (s_state.settings.reading_light < 0) s_state.settings.reading_light = 0;
+        if (s_state.settings.reading_light > 100) s_state.settings.reading_light = 100;
+        ui_manager_set_reading_light(s_state.settings.reading_light);
+    }
 
     snprintf(resp, resp_len,
-             "{\"type\":\"settings_sync\",\"brightness\":%d,\"volume\":%d,\"idle_timeout\":%d}",
+             "{\"type\":\"settings_sync\",\"brightness\":%d,\"volume\":%d,\"idle_timeout\":%d,\"reading_light\":%d}",
              s_state.settings.brightness,
              s_state.settings.volume,
-             s_state.settings.idle_timeout);
+             s_state.settings.idle_timeout,
+             s_state.settings.reading_light);
     app_state_broadcast_settings_sync();
     persistence_mark_dirty();
 }
@@ -1020,12 +1032,19 @@ static void handle_get_sleep(const char *json, char *resp, size_t resp_len)
 {
     (void)json;
     uint16_t minutes[7] = {0};
+    int16_t starts[7] = {-1, -1, -1, -1, -1, -1, -1};
     int count = 0;
-    sleep_store_get_history(minutes, &count);
+    sleep_store_get_last_7_entries(minutes, starts);
+    while (count < 7 && (minutes[count] > 0 || starts[count] >= 0)) count++;
     int off = snprintf(resp, resp_len, "{\"type\":\"sleep_info\",\"history\":[");
     for (int i = 0; i < count; i++) {
         if (i > 0) off += snprintf(resp + off, resp_len - off, ",");
         off += snprintf(resp + off, resp_len - off, "%u", (unsigned)minutes[i]);
+    }
+    off += snprintf(resp + off, resp_len - off, "],\"starts\":[");
+    for (int i = 0; i < count; i++) {
+        if (i > 0) off += snprintf(resp + off, resp_len - off, ",");
+        off += snprintf(resp + off, resp_len - off, "%d", (int)starts[i]);
     }
     snprintf(resp + off, resp_len - off,
              "],\"history_count\":%d,\"breathing_sessions_today\":%d}",
@@ -1036,10 +1055,11 @@ static void handle_get_settings(const char *json, char *resp, size_t resp_len)
 {
     (void)json;
     snprintf(resp, resp_len,
-             "{\"type\":\"settings_info\",\"brightness\":%d,\"volume\":%d,\"idle_timeout\":%d}",
+             "{\"type\":\"settings_info\",\"brightness\":%d,\"volume\":%d,\"idle_timeout\":%d,\"reading_light\":%d}",
              s_state.settings.brightness,
              s_state.settings.volume,
-             s_state.settings.idle_timeout);
+             s_state.settings.idle_timeout,
+             s_state.settings.reading_light);
 }
 
 static void handle_get_points(const char *json, char *resp, size_t resp_len)
