@@ -301,6 +301,51 @@ static void test_todo_done_single_count(void)
     CHECK(ps->total_points == 2 * POINTS_TODO);
 }
 
+static void test_move_award(void)
+{
+    points_store_init();
+    points_state_t *ps = points_store_get_state();
+
+    int total = 0;
+    for (int i = 0; i < POINTS_MOVE_DAILY_CAP; i++) {
+        total += points_store_award_move();
+    }
+    CHECK(total == POINTS_MOVE_DAILY_CAP * POINTS_MOVE);
+    CHECK(ps->moves_today == POINTS_MOVE_DAILY_CAP);
+    CHECK(ps->streaks[STREAK_MOVE].streak == 1);
+    CHECK(ps->total_points == POINTS_MOVE_DAILY_CAP * POINTS_MOVE);
+    CHECK(ps->history[0].reason == POINT_REASON_MOVE);
+    CHECK(ps->history[0].amount == POINTS_MOVE);
+
+    int capped = points_store_award_move();
+    CHECK(capped == 0);
+    CHECK(ps->moves_today == POINTS_MOVE_DAILY_CAP + 1);
+    CHECK(ps->total_points == POINTS_MOVE_DAILY_CAP * POINTS_MOVE);
+
+    add_days(1);
+    int next = points_store_award_move();
+    CHECK(next == POINTS_MOVE);
+    CHECK(ps->moves_today == 1);
+    CHECK(ps->streaks[STREAK_MOVE].streak == 2);
+}
+
+static void test_move_goal_link(void)
+{
+    points_store_init();
+    points_state_t *ps = points_store_get_state();
+
+    CHECK(points_store_set_goal(0, "Move", GOAL_METRIC_MOVE, 3));
+    CHECK(ps->goals[0].metric == GOAL_METRIC_MOVE);
+
+    points_store_award_move();
+    points_store_award_move();
+    CHECK(ps->goals[0].done == false);
+
+    int pts = points_store_award_move();
+    CHECK(pts == POINTS_MOVE + POINTS_GOAL);
+    CHECK(ps->goals[0].done);
+}
+
 int main(void)
 {
     test_basics();
@@ -319,6 +364,8 @@ int main(void)
     test_water_break_bonus();
     test_sleep_tracked();
     test_sleep_tiers();
+    test_move_award();
+    test_move_goal_link();
 
     if (g_failures == 0) {
         printf("All %d checks passed\n", g_checks);

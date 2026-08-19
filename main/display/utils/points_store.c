@@ -111,6 +111,7 @@ void points_store_rollover_if_new_day(void)
     s_state.focus_today = 0;
     s_state.breathing_today = 0;
     s_state.todos_done_today = 0;
+    s_state.moves_today = 0;
     s_state.water_bonus_claimed = false;
     s_state.bedtime_bonus_claimed = false;
     s_state.all_goals_bonus_claimed = false;
@@ -165,6 +166,7 @@ static const char *reason_name(int reason)
         case POINT_REASON_ADMIN:       return "admin";
         case POINT_REASON_SLEEP:       return "sleep";
         case POINT_REASON_WATER_BREAK: return "water_break";
+        case POINT_REASON_MOVE:        return "move";
         default:                       return "unknown";
     }
 }
@@ -326,6 +328,23 @@ int points_store_award_water_break(void)
     return award_points(POINTS_WATER_BREAK, POINT_REASON_WATER_BREAK, 0, STREAK_WATER);
 }
 
+int points_store_award_move(void)
+{
+    points_store_rollover_if_new_day();
+    s_state.moves_today++;
+    bump_streak(STREAK_MOVE);
+
+    int pts = 0;
+    if (s_state.moves_today <= POINTS_MOVE_DAILY_CAP) {
+        pts = POINTS_MOVE;
+        s_state.total_points += pts;
+        s_state.today_points += pts;
+        push_history(pts, POINT_REASON_MOVE, s_state.moves_today);
+    }
+    pts += check_goal_links(GOAL_METRIC_MOVE, s_state.moves_today);
+    return pts;
+}
+
 int points_store_award_focus(void)
 {
     points_store_rollover_if_new_day();
@@ -371,7 +390,7 @@ bool points_store_set_goal(int index, const char *label, int metric, int target)
     if (label) {
         set_key(g->label, sizeof(g->label), label);
     }
-    if (metric >= GOAL_METRIC_NONE && metric <= GOAL_METRIC_TODOS) {
+    if (metric >= GOAL_METRIC_NONE && metric <= GOAL_METRIC_MOVE) {
         g->metric = metric;
     }
     if (target >= 0) {

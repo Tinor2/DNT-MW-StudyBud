@@ -27,6 +27,8 @@ extern "C" {
 #define POINTS_SLEEP_8H      50
 #define POINTS_GOAL          20
 #define POINTS_ALL_GOALS     30
+#define POINTS_MOVE          10
+#define POINTS_MOVE_DAILY_CAP 5
 
 #define SLEEP_TIER_3H_MIN    180
 #define SLEEP_TIER_6H_MIN    360
@@ -47,7 +49,8 @@ typedef enum {
     POINT_REASON_ALL_GOALS,
     POINT_REASON_ADMIN,
     POINT_REASON_SLEEP = 10,
-    POINT_REASON_WATER_BREAK = 11
+    POINT_REASON_WATER_BREAK = 11,
+    POINT_REASON_MOVE = 12
 } point_reason_t;
 
 typedef enum {
@@ -55,7 +58,8 @@ typedef enum {
     GOAL_METRIC_WATER,
     GOAL_METRIC_FOCUS,
     GOAL_METRIC_BREATHING,
-    GOAL_METRIC_TODOS
+    GOAL_METRIC_TODOS,
+    GOAL_METRIC_MOVE
 } goal_metric_t;
 
 typedef enum {
@@ -64,6 +68,7 @@ typedef enum {
     STREAK_BREATHING,
     STREAK_GOALS,
     STREAK_SLEEP,
+    STREAK_MOVE,
     STREAK_COUNT
 } streak_activity_t;
 
@@ -100,6 +105,7 @@ typedef struct {
     int focus_today;
     int breathing_today;
     int todos_done_today;
+    int moves_today;
 
     bool water_bonus_claimed;
     bool bedtime_bonus_claimed;
@@ -132,6 +138,7 @@ int points_store_award_todo(void);
 int points_store_award_water(int water_goal);
 int points_store_revoke_water(int count, int water_goal);
 int points_store_award_water_break(void);
+int points_store_award_move(void);
 int points_store_award_breathing(int cycles);
 int points_store_award_focus(void);
 int points_store_award_sleep_tracked(int duration_min);
