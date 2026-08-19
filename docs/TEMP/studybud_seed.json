@@ -1,0 +1,212 @@
+{
+  "version": 2,
+  "todo_count": 4,
+  "next_todo_id": 5,
+  "todos": [
+    {
+      "i": 1,
+      "t": "Complete the project proposal",
+      "d": true,
+      "p": 2,
+      "o": 0,
+      "a": true
+    },
+    {
+      "i": 2,
+      "t": "Finish the design review doc",
+      "d": false,
+      "p": 1,
+      "o": 1,
+      "a": false
+    },
+    {
+      "i": 3,
+      "t": "Call the dentist to schedule",
+      "d": false,
+      "p": 1,
+      "o": 2,
+      "a": false
+    },
+    {
+      "i": 4,
+      "t": "30 minutes of deep reading",
+      "d": false,
+      "p": 0,
+      "o": 3,
+      "a": false
+    }
+  ],
+  "preset_count": 3,
+  "next_preset_id": 4,
+  "active_preset_id": 0,
+  "presets": [
+    {
+      "i": 1,
+      "n": "Deep Work",
+      "f": 1500000,
+      "b": 300000,
+      "p": true
+    },
+    {
+      "i": 2,
+      "n": "Quick Sprint",
+      "f": 600000,
+      "b": 120000,
+      "p": true
+    },
+    {
+      "i": 3,
+      "n": "Long Session",
+      "f": 2700000,
+      "b": 600000,
+      "p": true
+    }
+  ],
+  "exercise_count": 2,
+  "exercises": [
+    {
+      "i": 1,
+      "n": "Calm Box",
+      "in": 4000,
+      "h": 4000,
+      "ex": 4000,
+      "h2": 4000
+    },
+    {
+      "i": 2,
+      "n": "4-7-8",
+      "in": 4000,
+      "h": 7000,
+      "ex": 8000,
+      "h2": 0
+    }
+  ],
+  "water": {
+    "glasses": 6,
+    "goal": 8
+  },
+  "settings": {
+    "brightness": 80,
+    "volume": 40,
+    "idle_timeout": 60
+  },
+  "sleep_history": [
+    420,
+    450,
+    480,
+    360,
+    470,
+    440,
+    465
+  ],
+  "breath_count": 27,
+  "points": {
+    "total": 1230,
+    "today": 85,
+    "day": "2026-08-04",
+    "bt": 0,
+    "bedtime": {
+      "hour": 23,
+      "min": 30
+    },
+    "counts": {
+      "water": 6,
+      "focus": 2,
+      "breathing": 3,
+      "todos": 1
+    },
+    "bonus": {
+      "water": true,
+      "bedtime": false,
+      "all_goals": false
+    },
+    "goals": [
+      {
+        "label": "Drink 8 glasses of water",
+        "metric": 1,
+        "target": 8,
+        "done": true
+      },
+      {
+        "label": "Read for 30 minutes",
+        "metric": 0,
+        "target": 1,
+        "done": false
+      },
+      {
+        "label": "10 minutes of stretching",
+        "metric": 0,
+        "target": 1,
+        "done": false
+      }
+    ],
+    "streaks": [
+      {
+        "streak": 7,
+        "last": "2026-08-04"
+      },
+      {
+        "streak": 12,
+        "last": "2026-08-04"
+      },
+      {
+        "streak": 5,
+        "last": "2026-08-04"
+      },
+      {
+        "streak": 3,
+        "last": "2026-08-04"
+      },
+      {
+        "streak": 9,
+        "last": "2026-08-04"
+      }
+    ],
+    "history": [
+      {
+        "amount": 50,
+        "reason": 5,
+        "detail": 2,
+        "day": "2026-08-04",
+        "ts": 1722700000
+      },
+      {
+        "amount": 20,
+        "reason": 2,
+        "detail": 6,
+        "day": "2026-08-04",
+        "ts": 1722710000
+      },
+      {
+        "amount": 30,
+        "reason": 10,
+        "detail": 420,
+        "day": "2026-08-04",
+        "ts": 1722720000
+      },
+      {
+        "amount": 10,
+        "reason": 4,
+        "detail": 3,
+        "day": "2026-08-04",
+        "ts": 1722730000
+      },
+      {
+        "amount": 30,
+        "reason": 1,
+        "detail": 1,
+        "day": "2026-08-04",
+        "ts": 1722740000
+      },
+      {
+        "amount": 25,
+        "reason": 6,
+        "detail": 1410,
+        "day": "2026-08-04",
+        "ts": 1722750000
+      }
+    ],
+    "history_count": 6
+  },
+  "todo_id_cnt": 5
+}

@@ -7,7 +7,16 @@
 - Add in depth analysis on the Sleep and breathing trackers on svelte
 - Ask shreesh to print out 
 - Add instructional text to the home screen 
+- Accent color for each tab in the svelte app should change according to the logo
 
+## TAMAGOTCHI PAGE ON SVELTE
+- This page will have 2 tabs - the actualy tamagotchi section which will be added later, and the goals and points section
+- The points will be labelled as seeds instead of points
+- The goals section will display the points that the user accumulates over time, from completing tasks and using the variety of features within the app. Before we implement the goal system, it would be good to have a comprehensive list of all the different ways points can be added
+- THis goals section in of itself will have a few functions
+    - Firstly the user should be able to see where their points came from that day. This should be communicated in a user friendly logs, with very easy to understand language 
+    - And the user types up 3 custom goals, and they should be able to type these in at the start of every single day. Whenever the user completes these goals, they get a point reward, witha n additional award if you complete all three. The user should also bee able to have streaks
+    - This leads me to the third feature - streaks. If the user is sleeping consistently, drinking water consistently, consistenly completing breathing activities, etc, they build a streak. Each of these streaks should be individually displayed 
 ## NUANCE FOR THE GOAL SYSTEM:
 - ~~Whenever points are added, the reasons for these points being added should be kept track of in a log of some kind - the user should be able to see what behaviours that they are doing is being rewarded~~ (backend done: 50-event history ring, persisted, broadcast via `points_sync`/`points_earned`; web-app rendering still pending)
 - ~~For the water tracker, if the user reduces the amount of watre they have had that day, then the points should reduce as well~~

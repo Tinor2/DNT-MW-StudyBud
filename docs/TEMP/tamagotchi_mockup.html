@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tamagotchi LVGL Mockup — 480×480</title>
+<style>
+  :root {
+    /* From studybud_theme.h */
+    --primary:#3B7D4B; --primary-l:#74A77A; --primary-d:#2B5A35;
+    --bg:#EFF4EA; --card:#FFFFFF; --surface:#DDE5D6; --border:#BFC8B9;
+    --text:#2A3B2E; --text2:#6B7094; --muted:#9B9FBA;
+    --success:#5E9F72; --warn:#E0A84C; --err:#C97A7A; --info:#5FAF8B;
+    /* Tamagotchi accent derived from tamagotchi_logo (compute_dominant_color) */
+    --accent:#FF26F4; --accent-l:#FF7CF8; --accent-d:#D820CF; --accent-pastel:#FFE4FD;
+    --txt-on-accent:#FFFFFF;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body {
+    background:#1b1e21; color:#cfd8cf;
+    font-family:"Segoe UI", system-ui, -apple-system, sans-serif;
+    padding:24px; display:flex; flex-direction:column; align-items:center; gap:18px;
+  }
+  h1 { font-size:18px; font-weight:600; letter-spacing:.5px; color:#fff; }
+  h1 small { color:#9aa; font-weight:400; }
+  .stage { display:flex; gap:26px; flex-wrap:wrap; justify-content:center; align-items:flex-start; }
+
+  .device {
+    width:480px; height:480px; border-radius:28px; overflow:hidden; position:relative;
+    background:var(--accent-pastel);
+    box-shadow:0 0 0 1px #000, 0 18px 50px rgba(0,0,0,.6);
+    transform:scale(.78); transform-origin:top left;
+  }
+  .device-wrap { width:374px; height:374px; position:relative; }
+  .device-wrap::after{
+    content:""; position:absolute; inset:0; transform:scale(.78); transform-origin:top left;
+    border-radius:28px; box-shadow:inset 0 0 0 3px rgba(255,255,255,.08); pointer-events:none;
+  }
+
+  /* ================= screens ================= */
+  .screen { position:absolute; inset:0; display:none; }
+  .screen.active { display:block; }
+
+  /* ================= shared widgets ================= */
+  .title {
+    position:absolute; top:26px; left:0; width:100%; text-align:center;
+    font-size:26px; font-weight:700; color:#7F137A; letter-spacing:.5px;
+  }
+  .chip {
+    position:absolute; top:62px; left:50%; transform:translateX(-50%);
+    background:var(--card); color:#7F137A; border-radius:999px;
+    padding:6px 18px; font-size:17px; font-weight:600;
+    box-shadow:0 3px 10px rgba(216,32,207,.18);
+    display:flex; align-items:center; gap:8px;
+  }
+  .chip .lv-badge { color:var(--muted); font-weight:600; font-size:16px; }
+  .pill {
+    position:absolute; border:none; border-radius:999px; cursor:pointer;
+    font-family:inherit; font-weight:600; letter-spacing:.3px;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    transition:box-shadow .15s ease;
+  }
+  .pill.primary { background:var(--accent-d); color:var(--txt-on-accent); }
+  .pill.secondary { background:var(--accent-l); color:var(--txt-on-accent); }
+  .pill.back { background:var(--surface); color:#7F137A; box-shadow:0 2px 6px rgba(0,0,0,.06); }
+
+  /* Sleep-style focus ring: border animates 0->4px on the selected widget */
+  .focusable { transition:box-shadow .15s ease, opacity .15s ease; box-shadow:0 0 0 0 var(--accent-l); }
+  .focused { box-shadow:0 0 0 4px var(--accent-l) !important; }
+
+  /* ================= PET screen — placeholder plant ================= */
+  .pet-circle {
+    position:absolute; top:118px; left:50%; transform:translateX(-50%);
+    width:240px; height:240px; border-radius:50%;
+    background:var(--accent);
+    box-shadow:0 14px 34px rgba(216,32,207,.35), inset 0 -18px 34px rgba(0,0,0,.10);
+    display:flex; align-items:center; justify-content:center; overflow:hidden;
+  }
+  .pet-circle svg { width:170px; height:170px; }
+  .pet-hint { position:absolute; top:262px; left:0; width:100%; text-align:center; color:var(--muted); font-size:15px; }
+
+  /* ================= GOALS screen ================= */
+  .summary-card {
+    position:absolute; top:64px; left:40px; width:400px; height:118px;
+    background:var(--card); border-radius:22px; padding:16px 20px;
+    display:flex; flex-direction:column; justify-content:space-between;
+    box-shadow:0 4px 14px rgba(216,32,207,.10);
+  }
+  .summary-top { display:flex; align-items:baseline; gap:10px; }
+  .seeds-num { font-size:40px; font-weight:800; color:var(--text); line-height:1; }
+  .seeds-word { color:var(--muted); font-size:17px; font-weight:600; }
+  .summary-meta { color:var(--text2); font-size:15px; margin-top:6px; }
+  .progress-labels { display:flex; justify-content:space-between; font-size:14px; color:var(--text2); margin-bottom:5px; }
+  .progress-track { height:12px; border-radius:999px; background:var(--surface); overflow:hidden; }
+  .progress-fill { height:100%; border-radius:999px; background:linear-gradient(90deg,var(--accent-d),var(--accent)); }
+
+  .section-label {
+    position:absolute; left:40px; font-size:16px; font-weight:700; color:#7F137A;
+  }
+  .goal-row {
+    position:absolute; left:40px; width:400px; height:52px;
+    background:var(--card); border-radius:26px;
+    display:flex; align-items:center; gap:14px; padding:0 16px;
+    box-shadow:0 2px 8px rgba(216,32,207,.08);
+  }
+  .goal-check {
+    width:32px; height:32px; border-radius:50%; flex:none;
+    border:2px solid var(--border); background:var(--card);
+    display:flex; align-items:center; justify-content:center; font-size:19px; color:#fff;
+  }
+  .goal-row.done .goal-check { background:var(--success); border-color:var(--success); }
+  .goal-text { font-size:17px; color:var(--text); font-weight:600; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .goal-row.done .goal-text { color:var(--muted); text-decoration:line-through; }
+  .goal-count { color:var(--muted); font-size:14px; font-weight:600; flex:none; }
+
+  /* ================= STREAKS screen ================= */
+  .streak-row {
+    position:absolute; left:36px; width:408px; height:58px;
+    background:var(--card); border-radius:20px; padding:8px 14px;
+    display:flex; flex-direction:column; justify-content:center; gap:5px;
+    box-shadow:0 2px 8px rgba(216,32,207,.08);
+  }
+  .streak-top { display:flex; align-items:center; gap:10px; }
+  .streak-icon {
+    width:34px; height:34px; border-radius:50%; flex:none;
+    display:flex; align-items:center; justify-content:center;
+    font-size:18px; color:#fff;
+  }
+  .streak-name { font-size:17px; font-weight:700; color:var(--text); flex:1; }
+  .streak-days { font-size:17px; font-weight:800; color:#7F137A; }
+  .streak-days.muted { color:var(--muted); font-weight:600; }
+  .streak-track { height:6px; border-radius:999px; background:var(--surface); overflow:hidden; }
+  .streak-fill { height:100%; border-radius:999px; }
+  .streak-mult { font-size:12.5px; color:var(--muted); }
+  .streak-mult b { color:var(--text2); }
+
+  /* ================= sim controls ================= */
+  .sim-panel {
+    background:#262b30; border-radius:16px; padding:18px; width:330px;
+    display:flex; flex-direction:column; gap:14px; align-self:flex-start;
+  }
+  .sim-panel h2 { font-size:15px; color:#fff; font-weight:600; }
+  .nav-btns { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .nav-btns button {
+    border:none; border-radius:10px; padding:9px 0; font-family:inherit; font-size:14px; font-weight:600;
+    background:#343b41; color:#cfd8cf; cursor:pointer;
+  }
+  .nav-btns button.on { background:var(--accent-d); color:#fff; }
+  .note { font-size:12.5px; color:#9aa5ad; line-height:1.55; }
+  .note code { background:#1d2125; padding:1px 5px; border-radius:4px; color:#ffb3fb; font-size:11.5px; }
+  .legend { display:flex; flex-direction:column; gap:6px; font-size:12.5px; color:#9aa5ad; }
+  .legend .row { display:flex; align-items:center; gap:8px; }
+  .swatch { width:14px; height:14px; border-radius:4px; flex:none; }
+</style>
+</head>
+<body>
+  <h1>Tamagotchi — LVGL mockup <small>480×480 · pastel bg = tamagotchi accent</small></h1>
+
+  <div class="stage">
+    <div class="device-wrap">
+      <div class="device">
+        <!-- ==================== PET SCREEN ==================== -->
+        <div class="screen active" id="scr-pet">
+          <div class="title">Tamagotchi</div>
+          <div class="chip focusable focused">
+            <span class="lv-badge">Level</span> 4 · 1,230 seeds
+          </div>
+          <div class="pet-circle">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 170 170">
+              <ellipse cx="85" cy="118" rx="62" ry="20" fill="#E8B4E3" opacity="0.35"/>
+              <path d="M38 118 L52 148 L118 148 L132 118 Z" fill="#B98A5E"/>
+              <ellipse cx="85" cy="116" rx="60" ry="17" fill="#8A5A3B"/>
+              <line x1="85" y1="118" x2="85" y2="62" stroke="#4A9E63" stroke-width="7" stroke-linecap="round"/>
+              <ellipse cx="85" cy="58" rx="7" ry="7" fill="#5FB878"/>
+              <ellipse cx="70" cy="92" rx="17" ry="9" fill="#5FB878" transform="rotate(-30 70 92)"/>
+              <ellipse cx="100" cy="92" rx="17" ry="9" fill="#4A9E63" transform="rotate(30 100 92)"/>
+              <ellipse cx="76" cy="70" rx="13" ry="7" fill="#74C98C" transform="rotate(-18 76 70)"/>
+            </svg>
+
+          </div>
+          <div class="pet-hint">Your plant grows as you earn seeds</div>
+          <button class="pill primary focusable" style="width:180px;height:52px;font-size:19px;left:50%;transform:translateX(-50%);bottom:42px;">Goals</button>
+        </div>
+
+        <!-- ==================== GOALS SCREEN ==================== -->
+        <div class="screen" id="scr-goals">
+          <div class="title">Goals &amp; Seeds</div>
+
+          <div class="summary-card focusable">
+            <div>
+              <div class="summary-top">
+                <span class="seeds-num">1,230</span>
+                <span class="seeds-word">seeds</span>
+              </div>
+              <div class="summary-meta">85 earned today · Level 4</div>
+            </div>
+            <div>
+              <div class="progress-labels">
+                <span>Level 4</span><span>480 / 550</span>
+              </div>
+              <div class="progress-track"><div class="progress-fill" style="width:87%"></div></div>
+            </div>
+          </div>
+
+          <div class="section-label" style="top:196px;">Today's goals</div>
+
+          <div class="goal-row done focusable" style="top:222px;">
+            <div class="goal-check">✓</div>
+            <div class="goal-text">Drink 8 glasses of water</div>
+            <div class="goal-count">1/3 done</div>
+          </div>
+          <div class="goal-row focusable" style="top:282px;">
+            <div class="goal-check"></div>
+            <div class="goal-text">Read for 30 minutes</div>
+          </div>
+          <div class="goal-row focusable" style="top:342px;">
+            <div class="goal-check"></div>
+            <div class="goal-text">10 minutes of stretching</div>
+          </div>
+
+          <button class="pill primary focusable" style="width:190px;height:52px;font-size:18px;left:56px;bottom:34px;">Streaks</button>
+          <button class="pill back focusable" style="width:130px;height:52px;font-size:18px;right:56px;bottom:34px;">Back</button>
+        </div>
+
+        <!-- ==================== STREAKS SCREEN ==================== -->
+        <div class="screen" id="scr-streaks">
+          <div class="title">Streaks</div>
+
+          <div class="streak-row focusable" style="top:74px;">
+            <div class="streak-top">
+              <div class="streak-icon" style="background:var(--warn)">▶</div>
+              <div class="streak-name">Focus</div>
+              <div class="streak-days">7 days</div>
+            </div>
+            <div class="streak-track"><div class="streak-fill" style="width:70%;background:var(--warn)"></div></div>
+            <div class="streak-mult">Next milestone: <b>10 days</b> · <b>1.6×</b> seeds</div>
+          </div>
+
+          <div class="streak-row focusable" style="top:140px;">
+            <div class="streak-top">
+              <div class="streak-icon" style="background:var(--info)">💧</div>
+              <div class="streak-name">Water</div>
+              <div class="streak-days">12 days</div>
+            </div>
+            <div class="streak-track"><div class="streak-fill" style="width:100%;background:var(--info)"></div></div>
+            <div class="streak-mult">Next milestone: <b>15 days</b> · <b>2.1×</b> seeds</div>
+          </div>
+
+          <div class="streak-row focusable" style="top:206px;">
+            <div class="streak-top">
+              <div class="streak-icon" style="background:var(--primary)">⟳</div>
+              <div class="streak-name">Breathing</div>
+              <div class="streak-days">5 days</div>
+            </div>
+            <div class="streak-track"><div class="streak-fill" style="width:50%;background:var(--primary)"></div></div>
+            <div class="streak-mult">Next milestone: <b>10 days</b> · <b>1.4×</b> seeds</div>
+          </div>
+
+          <div class="streak-row focusable" style="top:272px;">
+            <div class="streak-top">
+              <div class="streak-icon" style="background:var(--success)">✓</div>
+              <div class="streak-name">Goals</div>
+              <div class="streak-days">3 days</div>
+            </div>
+            <div class="streak-track"><div class="streak-fill" style="width:30%;background:var(--success)"></div></div>
+            <div class="streak-mult">Next milestone: <b>5 days</b> · <b>1.2×</b> seeds</div>
+          </div>
+
+          <div class="streak-row focusable" style="top:338px;">
+            <div class="streak-top">
+              <div class="streak-icon" style="background:#9B9FBA">🌙</div>
+              <div class="streak-name">Sleep</div>
+              <div class="streak-days">9 days</div>
+            </div>
+            <div class="streak-track"><div class="streak-fill" style="width:90%;background:#9B9FBA"></div></div>
+            <div class="streak-mult">Next milestone: <b>10 days</b> · <b>1.8×</b> seeds</div>
+          </div>
+
+          <button class="pill back focusable" style="width:120px;height:42px;font-size:16px;left:50%;transform:translateX(-50%);bottom:26px;">Back</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="sim-panel">
+      <h2>Simulator</h2>
+      <div class="nav-btns">
+        <button data-screen="scr-pet" class="on">Pet</button>
+        <button data-screen="scr-goals">Goals</button>
+        <button data-screen="scr-streaks">Streaks</button>
+      </div>
+      <p class="note">
+        Click any widget to simulate the encoder focus ring
+        (sleep-style <code>4px</code> border + full opacity). Press = select.
+      </p>
+      <div class="legend">
+        <div class="row"><span class="swatch" style="background:var(--accent)"></span> accent (logo dominant)</div>
+        <div class="row"><span class="swatch" style="background:var(--accent-d)"></span> accent dark (primary buttons)</div>
+        <div class="row"><span class="swatch" style="background:var(--accent-pastel)"></span> screen bg (pastel accent)</div>
+        <div class="row"><span class="swatch" style="background:var(--card)"></span> cards (white)</div>
+        <div class="row"><span class="swatch" style="background:var(--success)"></span> completed goal check</div>
+      </div>
+      <p class="note">
+        Navigation: long-press encoder → app menu (existing global behaviour).
+        This mockup mirrors <code>screen_sleep.c</code>: one screen object, states
+        Pet → Goals → Streaks, show/hide per state, encoder moves focus.
+      </p>
+    </div>
+  </div>
+
+<script>
+  // Screen switching
+  document.querySelectorAll('.nav-btns button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById(btn.dataset.screen).classList.add('active');
+      document.querySelectorAll('.nav-btns button').forEach(b => b.classList.remove('on'));
+      btn.classList.add('on');
+      // clear focus, put it on first focusable
+      document.querySelectorAll('.focusable').forEach(f => f.classList.remove('focused'));
+      const first = document.getElementById(btn.dataset.screen).querySelector('.focusable');
+      if (first) first.classList.add('focused');
+    });
+  });
+
+  // Simulated encoder focus ring
+  document.querySelectorAll('.focusable').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const scr = el.closest('.screen');
+      scr.querySelectorAll('.focusable').forEach(f => f.classList.remove('focused'));
+      el.classList.add('focused');
+    });
+  });
+</script>
+</body>
+</html>

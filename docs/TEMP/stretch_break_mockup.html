@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stretch Break Mockup — LVGL 480×480 + Web tab</title>
+<style>
+  :root {
+    /* From studybud_theme.h */
+    --primary:#3B7D4B; --primary-l:#74A77A; --primary-d:#2B5A35;
+    --bg:#EFF4EA; --card:#FFFFFF; --surface:#DDE5D6; --border:#BFC8B9;
+    --text:#2A3B2E; --text2:#6B7094; --muted:#9B9FBA;
+    --success:#5E9F72; --warn:#E0A84C; --err:#C97A7A; --info:#5FAF8B;
+    /* Move accent — teal, derived from a "move" logo dominant color */
+    --accent:#2A9D8F; --accent-l:#57C2B5; --accent-d:#1F7A6E; --accent-pastel:#DFF3EF;
+    --txt-on-accent:#FFFFFF;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body {
+    background:#1b1e21; color:#cfd8cf;
+    font-family:"Segoe UI", system-ui, -apple-system, sans-serif;
+    padding:24px; display:flex; flex-direction:column; align-items:center; gap:18px;
+  }
+  h1 { font-size:18px; font-weight:600; letter-spacing:.5px; color:#fff; }
+  h1 small { color:#9aa; font-weight:400; }
+  .stage { display:flex; gap:26px; flex-wrap:wrap; justify-content:center; align-items:flex-start; }
+
+  .device {
+    width:480px; height:480px; border-radius:50%; overflow:hidden; position:relative;
+    background:var(--accent-pastel);
+    box-shadow:0 0 0 1px #000, 0 18px 50px rgba(0,0,0,.6);
+    transform:scale(.78); transform-origin:top left;
+  }
+  .device-wrap { width:374px; height:374px; position:relative; }
+  .device-wrap::after{
+    content:""; position:absolute; inset:0; transform:scale(.78); transform-origin:top left;
+    border-radius:50%; box-shadow:inset 0 0 0 3px rgba(255,255,255,.08); pointer-events:none;
+  }
+
+  /* Circular LVGL screen — dashed ring marks the ~safe area inside the 480×480 round display */
+  .safe-ring { position:absolute; inset:14px; border-radius:50%; border:2px dashed rgba(20,96,90,.22); pointer-events:none; }
+
+  /* ================= screens ================= */
+  .screen { position:absolute; inset:0; display:none; }
+  .screen.active { display:block; }
+
+  /* ================= shared widgets ================= */
+  .title {
+    position:absolute; top:40px; left:0; width:100%; text-align:center;
+    font-size:26px; font-weight:700; color:#14605A; letter-spacing:.5px;
+  }
+  .chip {
+    position:absolute; top:74px; left:50%; transform:translateX(-50%);
+    background:var(--card); color:#14605A; border-radius:999px;
+    padding:6px 18px; font-size:17px; font-weight:600;
+    box-shadow:0 3px 10px rgba(31,122,110,.18);
+    display:flex; align-items:center; gap:8px; white-space:nowrap;
+  }
+  .chip .lv-badge { color:var(--muted); font-weight:600; font-size:16px; }
+  .pill {
+    border:none; border-radius:999px; cursor:pointer;
+    font-family:inherit; font-weight:600; letter-spacing:.3px;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    transition:box-shadow .15s ease;
+  }
+  .pill.primary { background:var(--accent-d); color:var(--txt-on-accent); }
+  .pill.secondary { background:var(--accent-l); color:var(--txt-on-accent); }
+  .pill.back { background:var(--surface); color:#14605A; box-shadow:0 2px 6px rgba(0,0,0,.06); }
+  .pill.off { background:var(--muted); color:#fff; }
+
+  /* Sleep-style focus ring */
+  .focusable { transition:box-shadow .15s ease, opacity .15s ease; box-shadow:0 0 0 0 var(--accent-l); }
+  .focused { box-shadow:0 0 0 4px var(--accent-l) !important; }
+
+  /* ================= IDLE screen ================= */
+  .big-start {
+    position:absolute; top:150px; left:50%; transform:translateX(-50%);
+    width:220px; height:220px; border-radius:50%;
+    background:var(--accent-d); color:#fff; border:none; cursor:pointer;
+    font-family:inherit; font-weight:700; font-size:26px; letter-spacing:.5px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+    box-shadow:0 14px 30px rgba(31,122,110,.35);
+  }
+  .big-start small { font-size:15px; font-weight:600; opacity:.85; }
+  .stat-line { position:absolute; top:122px; left:0; width:100%; text-align:center; color:var(--text2); font-size:16px; font-weight:600; }
+  .hint { position:absolute; left:0; width:100%; text-align:center; color:var(--muted); font-size:14.5px; }
+
+  /* ================= RUNNING screen (arc ring) ================= */
+  .ring-wrap { position:absolute; top:120px; left:50%; transform:translateX(-50%); width:300px; height:300px; }
+  .ring-wrap svg { width:100%; height:100%; transform:rotate(135deg); }
+  .ring-bg { fill:none; stroke:var(--surface); stroke-width:16; }
+  .ring-fg { fill:none; stroke:var(--accent-d); stroke-width:16; stroke-linecap:round; transition:stroke-dashoffset .3s linear; }
+  .time-label {
+    position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+  }
+  .time-num { font-size:56px; font-weight:800; color:var(--text); font-variant-numeric:tabular-nums; }
+  .time-sub { font-size:15px; color:var(--muted); font-weight:600; }
+
+  /* ================= BREAK screen (radial list, same as Todos / Menu) ================= */
+  .list-wrap { position:absolute; inset:0; }
+  .srow {
+    position:absolute; left:50%; transform:translateX(-50%);
+    display:flex; align-items:center; gap:12px; padding:6px 12px;
+    white-space:nowrap; background:transparent; border:none; cursor:pointer;
+    transition:opacity .15s ease, width .15s ease;
+  }
+  .srow .sicon { font-size:20px; color:var(--accent-d); opacity:.8; width:24px; text-align:center; flex:none; }
+  .srow .stext { color:var(--text); font-size:16px; font-weight:600; opacity:.8; flex:1; text-align:center; }
+  .srow.focused .stext { font-size:20px; font-weight:700; opacity:1; }
+  .srow.focused .sicon { font-size:22px; opacity:1; }
+
+  .arrow {
+    position:absolute; left:50%; transform:translateX(-50%);
+    font-size:16px; color:var(--muted); display:none; pointer-events:none;
+  }
+  .arrow.up { top:34px; }
+  .arrow.down { bottom:34px; }
+
+  /* ================= SUMMARY screen ================= */
+  .plus {
+    position:absolute; top:144px; left:0; width:100%; text-align:center;
+    font-size:64px; font-weight:800; color:var(--accent-d);
+  }
+  .plus-sub { position:absolute; top:218px; left:0; width:100%; text-align:center; color:var(--text); font-size:21px; font-weight:700; }
+  .summary-card {
+    position:absolute; top:252px; left:48px; width:384px; height:100px;
+    background:var(--card); border-radius:22px; padding:14px 20px;
+    display:flex; flex-direction:column; justify-content:center; gap:8px;
+    box-shadow:0 4px 14px rgba(31,122,110,.10);
+  }
+  .summary-row { display:flex; justify-content:space-between; font-size:15.5px; color:var(--text2); font-weight:600; }
+  .summary-row b { color:var(--text); }
+
+  /* ================= ALERT popup (overlay) ================= */
+  .alert-card {
+    position:absolute; inset:0; background:rgba(0,0,0,.55);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .alert-box {
+    width:340px; background:var(--card); border-radius:26px; padding:28px 24px;
+    display:flex; flex-direction:column; align-items:center; gap:8px;
+    box-shadow:0 18px 44px rgba(0,0,0,.45);
+  }
+  .alert-title { font-size:27px; font-weight:800; color:var(--text); }
+  .alert-sub { font-size:16px; color:var(--text2); font-weight:600; }
+  .alert-btns { display:flex; gap:14px; margin-top:18px; }
+
+  /* ================= web tab mockup ================= */
+  .web {
+    width:440px; background:#f5f7f2; border-radius:16px; overflow:hidden;
+    box-shadow:0 0 0 1px #000, 0 18px 50px rgba(0,0,0,.55);
+    font-size:14px; color:var(--text);
+  }
+  .web-bar { background:#2a2f33; padding:9px 14px; display:flex; gap:6px; align-items:center; }
+  .web-bar .dot { width:10px; height:10px; border-radius:50%; }
+  .web-tabs { display:flex; background:#e9ede4; border-bottom:1px solid var(--border); padding:0 10px; gap:4px; }
+  .web-tab { padding:9px 14px; border-radius:10px 10px 0 0; font-weight:600; font-size:13px; color:var(--muted); cursor:pointer; }
+  .web-tab.on { background:#f5f7f2; color:#14605A; box-shadow:inset 0 2px 0 var(--accent); }
+  .web-body { padding:18px; display:flex; flex-direction:column; gap:16px; background:#f5f7f2; }
+  .web-card { background:var(--card); border-radius:14px; padding:14px 16px; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+  .web-card h3 { font-size:12px; letter-spacing:.6px; text-transform:uppercase; color:var(--muted); font-weight:700; margin-bottom:10px; }
+  .live-top { display:flex; align-items:baseline; gap:10px; }
+  .live-num { font-size:34px; font-weight:800; font-variant-numeric:tabular-nums; color:var(--text); }
+  .live-badge { font-size:11px; font-weight:700; color:var(--accent-d); background:var(--accent-pastel); padding:3px 9px; border-radius:999px; }
+  .web-track { height:8px; border-radius:999px; background:var(--surface); overflow:hidden; margin-top:10px; }
+  .web-fill { height:100%; background:linear-gradient(90deg,var(--accent-d),var(--accent)); width:0%; transition:width .3s linear; }
+  .web-mirror { font-size:11.5px; color:var(--muted); margin-top:8px; }
+  .ex-edit-row { display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid var(--surface); }
+  .ex-edit-row:last-child { border-bottom:none; }
+  .ex-edit-text { flex:1; font-weight:600; font-size:13.5px; }
+  .icon-btn {
+    width:26px; height:26px; border-radius:8px; border:none; cursor:pointer;
+    background:var(--surface); color:var(--text2); font-size:13px; font-weight:700;
+  }
+  .add-btn { width:100%; margin-top:4px; padding:9px; border:1.5px dashed var(--border); border-radius:10px; background:transparent; color:var(--accent-d); font-weight:700; font-size:13px; cursor:pointer; }
+  .field { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:5px 0; }
+  .field label { color:var(--text2); font-weight:600; font-size:13px; }
+  .field input { width:90px; padding:6px 8px; border:1px solid var(--border); border-radius:8px; font-family:inherit; font-size:13px; text-align:center; }
+  .toggle { position:relative; width:44px; height:24px; border-radius:999px; background:var(--accent); cursor:pointer; }
+  .toggle::after { content:""; position:absolute; top:2px; right:2px; width:20px; height:20px; border-radius:50%; background:#fff; }
+  .toggle.off { background:var(--border); }
+  .toggle.off::after { left:2px; right:auto; }
+  .note2 { font-size:11.5px; color:var(--muted); line-height:1.5; }
+
+  /* ================= sim controls ================= */
+  .sim-panel {
+    background:#262b30; border-radius:16px; padding:18px; width:330px;
+    display:flex; flex-direction:column; gap:14px; align-self:flex-start;
+  }
+  .sim-panel h2 { font-size:15px; color:#fff; font-weight:600; }
+  .nav-btns { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .nav-btns button {
+    border:none; border-radius:10px; padding:9px 0; font-family:inherit; font-size:14px; font-weight:600;
+    background:#343b41; color:#cfd8cf; cursor:pointer;
+  }
+  .nav-btns button.on { background:var(--accent-d); color:#fff; }
+  .note { font-size:12.5px; color:#9aa5ad; line-height:1.55; }
+  .note code { background:#1d2125; padding:1px 5px; border-radius:4px; color:#9ff0e4; font-size:11.5px; }
+  .legend { display:flex; flex-direction:column; gap:6px; font-size:12.5px; color:#9aa5ad; }
+  .legend .row { display:flex; align-items:center; gap:8px; }
+  .swatch { width:14px; height:14px; border-radius:4px; flex:none; }
+</style>
+</head>
+<body>
+      <h1>Stretch Break — mockup <small>circular 480×480 device + web Move tab</small></h1>
+
+  <div class="stage">
+    <div class="device-wrap">
+      <div class="device">
+        <!-- ==================== IDLE ==================== -->
+        <div class="screen active" id="scr-idle">
+          <div class="safe-ring"></div>
+          <div class="title">Stretch Break</div>
+          <div class="chip focusable focused">
+            <span class="lv-badge">Today</span> 2 / 5 breaks
+          </div>
+          <div class="stat-line">Move streak: 4 days</div>
+          <button class="big-start focusable">Start<br><small>60 min countdown</small></button>
+          <div class="hint" style="bottom:120px;">Long-press encoder for menu</div>
+          <button class="pill focusable" style="width:200px;height:46px;font-size:16px;left:50%;transform:translateX(-50%);bottom:42px;background:var(--surface);color:#14605A;">Enabled: ON</button>
+        </div>
+
+        <!-- ==================== RUNNING ==================== -->
+        <div class="screen" id="scr-running">
+          <div class="safe-ring"></div>
+          <div class="title">Stretch Break</div>
+          <div class="chip"><span class="lv-badge">Next break</span> 60 min</div>
+          <div class="ring-wrap">
+            <svg viewBox="0 0 300 300">
+              <circle class="ring-bg" cx="150" cy="150" r="128"/>
+              <circle class="ring-fg" id="ringFg" cx="150" cy="150" r="128"/>
+            </svg>
+            <div class="time-label">
+              <div class="time-num" id="timeNum">59:32</div>
+              <div class="time-sub">until break</div>
+            </div>
+          </div>
+          <button class="pill secondary focusable" style="width:190px;height:50px;font-size:18px;left:50%;transform:translateX(-50%);bottom:42px;">Pause</button>
+        </div>
+
+        <!-- ==================== BREAK (radial list, todo/menu style) ==================== -->
+        <div class="screen" id="scr-break">
+          <div class="safe-ring"></div>
+          <div class="title">Select what you did</div>
+          <div class="list-wrap">
+            <div class="srow" data-name="Walk"><span class="sicon">●</span><span class="stext">Walk</span></div>
+            <div class="srow" data-name="Stretch"><span class="sicon">●</span><span class="stext">Stretch</span></div>
+            <div class="srow" data-name="Push-ups"><span class="sicon">●</span><span class="stext">Push-ups</span></div>
+            <div class="srow" data-name="Squats"><span class="sicon">●</span><span class="stext">Squats</span></div>
+          </div>
+          <div class="arrow up">▲</div>
+          <div class="arrow down">▼</div>
+          <div class="hint" style="bottom:44px;">Press to confirm</div>
+        </div>
+
+        <!-- ==================== SUMMARY ==================== -->
+        <div class="screen" id="scr-summary">
+          <div class="safe-ring"></div>
+          <div class="title">Stretch complete</div>
+          <div class="plus">+10 seeds</div>
+          <div class="plus-sub">Stretch</div>
+          <div class="summary-card focusable">
+            <div class="summary-row"><span>Breaks today</span><b>3 / 5</b></div>
+            <div class="summary-row"><span>Move streak</span><b>4 days</b></div>
+          </div>
+          <div class="hint" style="bottom:42px;">Press to start next countdown</div>
+        </div>
+
+        <!-- ==================== ALERT popup ==================== -->
+        <div class="screen" id="scr-alert">
+          <div class="safe-ring"></div>
+          <div class="alert-card">
+            <div class="alert-box">
+              <div class="alert-title">Time to move!</div>
+              <div class="alert-sub">You've been sitting for 60 min</div>
+              <div class="alert-btns">
+                <button class="pill secondary focusable focused" style="width:150px;height:54px;font-size:16px;">Snooze (10m)</button>
+                <button class="pill primary focusable" style="width:150px;height:54px;font-size:16px;" id="btnStartBreak">Start Break</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== WEB TAB ==================== -->
+    <div class="web">
+      <div class="web-bar">
+        <span class="dot" style="background:#ff5f57"></span>
+        <span class="dot" style="background:#febc2e"></span>
+        <span class="dot" style="background:#28c840"></span>
+      </div>
+      <div class="web-tabs">
+        <div class="web-tab">Tamagotchi</div>
+        <div class="web-tab">Timer</div>
+        <div class="web-tab">Sleep</div>
+        <div class="web-tab on">Stretch Break</div>
+      </div>
+      <div class="web-body">
+        <div class="web-card">
+          <h3>Countdown (device mirror)</h3>
+          <div class="live-top">
+            <span class="live-num" id="webNum">59:32</span>
+            <span class="live-badge">▶ Running</span>
+          </div>
+          <div class="web-track"><div class="web-fill" id="webFill" style="width:0.8%"></div></div>
+          <div class="web-mirror">The device is authoritative — this card mirrors its countdown.</div>
+        </div>
+
+        <div class="web-card">
+          <h3>Exercises</h3>
+          <div class="ex-edit-row"><span class="ex-edit-text">Walk</span><button class="icon-btn">✎</button><button class="icon-btn">✕</button></div>
+          <div class="ex-edit-row"><span class="ex-edit-text">Stretch</span><button class="icon-btn">✎</button><button class="icon-btn">✕</button></div>
+          <div class="ex-edit-row"><span class="ex-edit-text">Push-ups</span><button class="icon-btn">✎</button><button class="icon-btn">✕</button></div>
+          <div class="ex-edit-row"><span class="ex-edit-text">Squats</span><button class="icon-btn">✎</button><button class="icon-btn">✕</button></div>
+          <button class="add-btn">+ Add exercise (max 4)</button>
+        </div>
+
+        <div class="web-card">
+          <h3>Settings</h3>
+          <div class="field"><label>Interval (minutes)</label><input type="number" value="60"></div>
+          <div class="field"><label>Quiet hours</label><input type="time" value="23:00"></div>
+          <div class="field" style="padding-left:100px;"><input type="time" value="07:00"></div>
+          <div class="field"><label>Reminders</label><div class="toggle"></div></div>
+          <div class="note2">Quiet hours pause the countdown and auto-resume after. Master off resets any running countdown.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sim-panel">
+      <h2>Simulator</h2>
+      <div class="nav-btns">
+        <button data-screen="scr-idle" class="on">Idle</button>
+        <button data-screen="scr-running">Running</button>
+        <button data-screen="scr-break">Break</button>
+        <button data-screen="scr-summary">Summary</button>
+        <button data-screen="scr-alert">Alert popup</button>
+      </div>
+      <p class="note">
+        The display is <b>circular</b> — the dashed ring shows the content safe area; anything
+        past it is clipped off-screen. All widgets stay inside. Click any widget for the encoder
+        focus ring (<code>4px</code> accent border, sleep-style). Press = select. The Running
+        screen ticks live and rings the arc (270° sweep, 135°–405° like <code>screen_timer.c</code>).
+      </p>
+      <div class="legend">
+        <div class="row"><span class="swatch" style="background:var(--accent)"></span> accent (teal)</div>
+        <div class="row"><span class="swatch" style="background:var(--accent-d)"></span> accent dark (primary buttons)</div>
+        <div class="row"><span class="swatch" style="background:var(--accent-pastel)"></span> screen bg (pastel accent)</div>
+        <div class="row"><span class="swatch" style="background:var(--card)"></span> cards (white)</div>
+      </div>
+      <p class="note">
+        States: IDLE (stats + Start + master toggle) → RUNNING (mm:ss + arc + Pause) →
+        BREAK (exercise picker — radial list exactly like Todos/Menu: transparent rows, font-size
+        focus, width/opacity fade toward the circle edge, scroll arrows) → SUMMARY (press →
+        auto-restart countdown). Alert popup overlays via <code>lv_layer_top</code> — rotate +
+        press picks Snooze or Start Break.
+      </p>
+    </div>
+  </div>
+
+<script>
+  // Screen switching
+  document.querySelectorAll('.nav-btns button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      show(btn.dataset.screen);
+      document.querySelectorAll('.nav-btns button').forEach(b => b.classList.remove('on'));
+      btn.classList.add('on');
+    });
+  });
+  function show(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    document.querySelectorAll('.focusable').forEach(f => f.classList.remove('focused'));
+    const first = document.getElementById(id).querySelector('.focusable');
+    if (first) first.classList.add('focused');
+    if (id === 'scr-running') startClock();
+    if (id === 'scr-break') renderList();
+  }
+
+  /* ---- Radial list (BREAK exercise picker — mirrors screen_todos / screen_menu) ---- */
+  const CY = 240, CR = 240, ROW_SPACING = 64, MAX_ROW_W = 420, MIN_VISIBLE_W = 120, FADE_ZONE = 60;
+  let focusIdx = 0;
+
+  function renderList() {
+    const wrap = document.getElementById('scr-break');
+    const rows = wrap.querySelectorAll('.srow');
+    const n = rows.length;
+    if (n === 0) return;
+    if (focusIdx >= n) focusIdx = 0;
+
+    // scroll the focused row to the vertical center, like LV_SCROLL_SNAP_CENTER
+    const centerY = CY - focusIdx * ROW_SPACING;
+
+    let hasUp = false, hasDown = false;
+    rows.forEach((row, i) => {
+      const mid = centerY + i * ROW_SPACING;
+      const dy = mid - CY, ady = Math.abs(dy);
+      const isFocused = (i === focusIdx);
+
+      if (ady >= CR) {
+        row.style.display = 'none';
+        if (dy < 0) hasUp = true; else hasDown = true;
+        return;
+      }
+      const half_w = Math.sqrt(CR * CR - ady * ady);
+      let avail = Math.min(2 * half_w, MAX_ROW_W);
+      if (avail < MIN_VISIBLE_W) {
+        row.style.display = 'none';
+        if (dy < 0) hasUp = true; else hasDown = true;
+        return;
+      }
+
+      row.style.display = 'flex';
+      row.style.width = avail + 'px';
+      row.classList.toggle('focused', isFocused);
+
+      // measure then place (top = mid - height/2)
+      const h = row.offsetHeight;
+      row.style.top = (mid - h / 2) + 'px';
+
+      let opa = (ady < FADE_ZONE) ? 1 : Math.max(0.15, 1 - (ady - FADE_ZONE) / (CR - FADE_ZONE));
+      row.style.opacity = isFocused ? '1' : opa.toFixed(3);
+    });
+
+    wrap.querySelector('.arrow.up').style.display = hasUp ? 'block' : 'none';
+    wrap.querySelector('.arrow.down').style.display = hasDown ? 'block' : 'none';
+  }
+
+  // Encoder-style rotation focus (todo/menu: rotate moves focus, font size grows)
+  const listWrap = document.getElementById('scr-break');
+  listWrap.querySelectorAll('.srow').forEach(row => {
+    row.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const rows = [...listWrap.querySelectorAll('.srow')];
+      focusIdx = rows.indexOf(row);
+      renderList();
+    });
+  });
+
+  // Simulated encoder focus ring
+  document.querySelectorAll('.focusable').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const scr = el.closest('.screen');
+      scr.querySelectorAll('.focusable').forEach(f => f.classList.remove('focused'));
+      el.classList.add('focused');
+    });
+  });
+
+  // Alert buttons
+  document.getElementById('btnStartBreak').addEventListener('click', () => {
+    show('scr-break');
+    document.querySelectorAll('.nav-btns button').forEach(b => b.classList.toggle('on', b.dataset.screen === 'scr-break'));
+  });
+
+  // Live countdown demo on the RUNNING screen
+  const RING = document.querySelector('#ringFg');
+  const C = 2 * Math.PI * 128;
+  RING.style.strokeDasharray = C;
+  let remaining = 59 * 60 + 32;
+  let clockId = null;
+
+  function fmt(s) {
+    const m = Math.floor(s / 60), ss = s % 60;
+    return String(m).padStart(2, '0') + ':' + String(ss).padStart(2, '0');
+  }
+  function paint() {
+    const total = 60 * 60;
+    const prog = (total - remaining) / total;
+    document.getElementById('timeNum').textContent = fmt(remaining);
+    document.getElementById('webNum').textContent = fmt(remaining);
+    document.getElementById('webFill').style.width = (prog * 100) + '%';
+    RING.style.strokeDashoffset = C * (1 - prog);
+  }
+  function startClock() {
+    if (clockId) return;
+    clockId = setInterval(() => {
+      remaining = Math.max(0, remaining - 1);
+      paint();
+      if (remaining === 0) { clearInterval(clockId); clockId = null; show('scr-alert'); }
+    }, 1000);
+  }
+  paint();
+</script>
+</body>
+</html>

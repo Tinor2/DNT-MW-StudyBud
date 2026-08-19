@@ -2,275 +2,520 @@
 
 ## Goal
 
-Build the Svelte “Tamagotchi” experience so it shows:
+Build the Svelte “Tamagotchi” experience as a polished, readable companion to the LVGL app. The first milestone should let the user:
 
-- a seed/points summary,
-- daily goal cards,
-- streak chips,
-- a human-friendly activity log,
-- and a future plant preview area.
+- see their current seed balance and level,
+- view and edit three daily goals,
+- understand their streak progress,
+- read a human-friendly history of how they earned seeds,
+- and preview a placeholder plant area that can later grow as the level increases.
 
-The implementation should use the ESP32/LVGL app as the source of truth, while keeping the Svelte UI responsive and easy to extend.
-
----
-
-## 1. Data flow decision
-
-### Short answer
-
-No major protocol rewrite is needed.
-
-The firmware already exposes the right data through the existing WebSocket flow:
-
-- [main/networking/app_state.c](main/networking/app_state.c) already broadcasts `points_sync`
-- [main/networking/app_state.c](main/networking/app_state.c) already includes a `points` block inside `full_sync`
-- [main/networking/app_state.c](main/networking/app_state.c) already handles goal edits, bedtime settings, and admin actions
-
-### What the Svelte app should do
-
-The Svelte app should:
-
-1. connect to the existing websocket stream,
-2. request a fresh snapshot on connect with `get_points`,
-3. listen for `points_sync` and `points_earned`,
-4. normalize the payload into a single tamagotchi state object,
-5. render that state in the UI.
-
-### Recommended protocol tweak (optional but useful)
-
-The current payload is sufficient, but the UI would be cleaner if the device also sends a small human-readable label for each history reason, for example:
-
-- `reason_label: "Water glass"`
-- `reason_label: "Sleep tracked"`
-
-This is optional. The first implementation can map numeric reason codes locally in the web app.
+The implementation should stay tightly aligned with the existing ESP32/LVGL system so that the web app never becomes a second source of truth.
 
 ---
 
-## 2. New Svelte-side state structure
+## 1. Product outcome and success definition
 
-We do not need a new database on the device or a separate backend store. The web app should use a dedicated Svelte store plus local persistence for draft UI state.
+The feature is successful when a user can open the Tamagotchi tab and immediately understand:
 
-### Suggested state shape
+1. how many seeds they have,
+2. how many seeds they earned today,
+3. what their current level is,
+4. what their daily goals are,
+5. how their streaks are progressing,
+6. and where their seeds came from recently.
+
+### Definition of done
+
+- The Svelte app shows a live summary from the device.
+- Users can edit the three daily goals.
+- Completion toggles are reflected correctly.
+- The activity log reads clearly without needing raw reason codes.
+- The UI is readable on both desktop and mobile layouts.
+- The design fits the existing StudyBud visual language.
+
+---
+
+## 2. Architecture decision: single source of truth
+
+### Recommended model
+
+Use the ESP32/LVGL app as the authoritative system for all points, goals, streaks, and history.
+
+The Svelte app should not maintain its own independent reward logic. Instead it should:
+
+1. connect to the existing WebSocket channel,
+2. ask for a fresh snapshot with the existing points request,
+3. receive broadcasts for point changes,
+4. normalize the payload into a clean UI-facing state object,
+5. render that state in the Tamagotchi tab.
+
+### Why this is the right approach
+
+- It keeps the firmware and web app in sync.
+- It avoids duplicate logic for streak rules and reward calculations.
+- It preserves the current persistence model already used by the LVGL app.
+- It makes future LVGL and Svelte parity easier to maintain.
+
+### Files that should participate
+
+- [main/networking/app_state.c](main/networking/app_state.c) remains the source of truth for protocol output.
+- [web-app/src/App.svelte](web-app/src/App.svelte) should be the integration point for incoming messages.
+- [web-app/src/lib/stores/tamagotchi.js](web-app/src/lib/stores/tamagotchi.js) should hold the normalized UI state.
+- [web-app/src/lib/components](web-app/src/lib/components) should contain the UI components.
+
+---
+
+## 3. Data contract and message handling plan
+
+The current firmware already emits enough information for this UI. The web app should listen for the following message types:
+
+### Required incoming message types
+
+- `full_sync`
+  - used to initialize all tab state.
+  - should populate the tamagotchi store with points, goals, streaks, and history.
+
+- `points_sync`
+  - used for incremental updates after point changes.
+  - should replace the relevant slice of the tamagotchi state.
+
+- `points_earned`
+  - used for lightweight feedback after a reward is granted.
+  - should optionally trigger a small toast or subtle visual confirmation.
+
+- `goal_update`
+  - used when a goal is edited or toggled.
+  - should cause the UI to re-read the latest state.
+
+### Expected payload fields
+
+The Svelte store should normalize the following fields:
+
+- `total`
+- `today`
+- `day`
+- `level`
+- `level_progress`
+- `level_threshold`
+- `water_today`
+- `water_goal`
+- `water_bonus`
+- `bedtime_bonus`
+- `bedtime`
+- `goals[]`
+- `streaks[]`
+- `history[]`
+
+### Suggested normalization layer
+
+Instead of letting components read the raw websocket payload directly, the store should expose a shaped object like this:
 
 ```ts
-interface TamagotchiState {
-  total: number;
-  today: number;
-  day: string;
-  level: number;
-  levelProgress: number;
-  levelThreshold: number;
-
-  waterToday: number;
-  waterGoal: number;
-  waterBonusClaimed: boolean;
-  bedtimeBonusClaimed: boolean;
-  bedtime: { hour: number; min: number };
-
-  goals: Array<{
-    index: number;
-    label: string;
-    metric: number;
-    target: number;
-    done: boolean;
-  }>;
-
-  streaks: Array<{
-    activity: string;
-    days: number;
-    multiplier: number;
-  }>;
-
-  history: Array<{
-    amount: number;
-    reason: number;
-    detail: number;
-    day: string;
-    ts: number;
-  }>;
+{
+  total: 0,
+  today: 0,
+  level: 1,
+  levelProgress: 0,
+  levelThreshold: 100,
+  goals: [],
+  streaks: [],
+  history: []
 }
 ```
 
-### Where this should live
+### Optional protocol improvement
 
-Create a dedicated store such as:
+If the firmware later adds human-readable reason labels, the UI will become cleaner. For now, the web app can map reason codes locally into labels such as:
 
-- [web-app/src/lib/stores/tamagotchi.js](web-app/src/lib/stores/tamagotchi.js)
-
-This store should:
-
-- receive updates from websocket messages,
-- expose helpers like `setPointsState`, `applyPointsUpdate`, `setGoalDraft`, `toggleGoal`, `setBedtime`,
-- optionally persist draft goal text to localStorage so editing is not lost on refresh.
-
-### What does not need a new database
-
-- No new SD-card schema is required on the ESP32.
-- No separate server-side database is required for the first pass.
-- The LVGL app already persists points, goals, and history through the existing persistence flow.
+- water glass,
+- bedtime bonus,
+- breathing session,
+- focus session,
+- daily goal,
+- streak reward,
+- admin adjustment.
 
 ---
 
-## 3. UI architecture
+## 4. Svelte-side state model
 
-### Main page structure
+The web app should use a dedicated store rather than scattering state across multiple components.
 
-Add a new top-level tab on the Svelte app called “Tamagotchi”.
+### Proposed store structure
 
-The page should contain two sub-tabs:
+Create a store in [web-app/src/lib/stores/tamagotchi.js](web-app/src/lib/stores/tamagotchi.js) with the following responsibilities:
+
+- accept incoming payloads from the websocket layer,
+- expose a normalized state object,
+- provide helper functions for:
+  - `setPointsState`,
+  - `applyPointsUpdate`,
+  - `setGoalDraft`,
+  - `saveGoalEdit`,
+  - `toggleGoalCompletion`,
+  - `setBedtimeSettings`,
+  - `setActiveSubtab`.
+
+### Suggested internal state shape
+
+```ts
+{
+  total: number,
+  today: number,
+  day: string,
+  level: number,
+  levelProgress: number,
+  levelThreshold: number,
+  waterToday: number,
+  waterGoal: number,
+  waterBonusClaimed: boolean,
+  bedtimeBonusClaimed: boolean,
+  bedtime: { hour: number, min: number },
+  goals: Array<{
+    index: number,
+    label: string,
+    metric: number,
+    target: number,
+    done: boolean
+  }>,
+  streaks: Array<{
+    activity: string,
+    days: number,
+    multiplier: number
+  }>,
+  history: Array<{
+    amount: number,
+    reason: number,
+    detail: number,
+    day: string,
+    ts: number
+  }>
+}
+```
+
+### Local persistence strategy
+
+The store should keep UI-only draft state in localStorage, such as:
+
+- the last active sub-tab,
+- unsaved edits while a modal is open,
+- the last selected goal metric,
+- optional collapsed sections.
+
+This should never override the device’s authoritative state.
+
+---
+
+## 5. UI architecture and screen structure
+
+### Main layout
+
+Add a new top-level tab called “Tamagotchi”.
+
+The page should have two sub-tabs:
 
 1. Plant
    - placeholder for now,
-   - later will show a growing plant and level progression.
+   - reserved for future plant artwork and growth-stage visuals.
 
 2. Goals & Seeds
-   - the main feature for this milestone,
-   - displays points, goals, streaks, and activity history.
+   - the primary feature for this milestone.
 
-### Suggested component split
+### Suggested component hierarchy
 
-Create these components under [web-app/src/lib/components](web-app/src/lib/components):
+Create the following components in [web-app/src/lib/components](web-app/src/lib/components):
 
 - `TamagotchiPage.svelte`
-- `SeedsSummaryCard.svelte`
-- `DailyGoalsPanel.svelte`
-- `StreaksPanel.svelte`
-- `ActivityLogPanel.svelte`
-- `GoalEditorSheet.svelte`
-- `PlantPreview.svelte` (placeholder for future work)
+  - container for the page and its sub-tabs.
 
-### UI layout
+- `SeedsSummaryCard.svelte`
+  - shows total seeds, today’s seeds, level, and progress bar.
+
+- `DailyGoalsPanel.svelte`
+  - renders the three daily goals.
+
+- `GoalEditorSheet.svelte`
+  - handles editing a single goal.
+
+- `StreaksPanel.svelte`
+  - displays streak chips and multipliers.
+
+- `ActivityLogPanel.svelte`
+  - shows recent seed-earning events in a readable list.
+
+- `PlantPreview.svelte`
+  - placeholder for future growth animation and plant art.
+
+### Page sections
 
 #### Top section
 
-- large summary card with:
-  - total seeds,
-  - seeds earned today,
-  - current level,
-  - progress bar to next level.
+A summary card with:
+
+- total seeds,
+- seeds earned today,
+- current level,
+- progress to next level,
+- a small helper line such as “Keep going to grow your plant”.
 
 #### Middle section
 
-- daily goals grid with 3 cards,
-- each card shows:
-  - label,
-  - metric chip,
-  - target value,
-  - done state,
-  - edit button.
+Three goal cards arranged in a responsive grid. Each card should display:
+
+- the goal title,
+- the metric chip,
+- the current target,
+- completion state,
+- and an edit action.
 
 #### Bottom section
 
-- streak chips row,
-- then a scrollable activity log.
+A combined area for:
 
-### Interaction model
-
-- Clicking a goal card opens an editor.
-- The editor should allow:
-  - changing the goal text,
-  - changing the metric,
-  - changing the target,
-  - toggling completion.
-- The activity log should be read-only and sorted newest-first.
+- streak chips,
+- the last 10–20 reward events,
+- and a small empty-state message if the history is empty.
 
 ---
 
-## 4. UI styling plan
+## 6. UI behavior and interaction design
+
+### Goal editing flow
+
+When the user taps a goal card:
+
+1. open a compact editor sheet or modal,
+2. show the current label and target,
+3. let the user edit the label,
+4. allow them to choose a metric,
+5. let them set a target value,
+6. let them toggle done/undone,
+7. save the change back through the existing websocket command.
+
+### Empty states
+
+The page should never feel blank:
+
+- if no goals exist, show a helpful message: “Add your first daily goal”.
+- if no history exists, show: “No seed activity yet — complete a habit to start earning”.
+- if no streak data exists, show a neutral message rather than an empty panel.
+
+### Readability rules
+
+- use concise labels,
+- use plain-language reward descriptions,
+- avoid showing raw numeric reason codes unless in a debug mode,
+- keep the layout calm and not overloaded.
+
+---
+
+## 7. Styling plan
 
 ### Visual direction
 
-Use the app’s existing green palette and the same tab accent colors as the rest of the Svelte app.
+The Tamagotchi tab should feel like a natural continuation of the existing StudyBud UI.
 
-### Design rules
+Use the existing palette and token system from [web-app/src/style.css](web-app/src/style.css) rather than introducing a new visual language.
 
-- Use the existing theme tokens from [web-app/src/style.css](web-app/src/style.css)
-- Keep the screen visually calm and readable, not overloaded
-- Use cards with rounded corners, subtle shadows, and mild hover states
-- Use clear iconography from the existing logo set in [web-app/src/assets/logos](web-app/src/assets/logos)
+### Styling rules
 
-### Color behavior
+- use the current green family for primary actions,
+- keep spacing generous,
+- use rounded cards and subtle shadows,
+- use color sparingly to call attention to the current status,
+- ensure the layout remains readable in both light and dark mode.
 
-The tamagotchi tab should inherit the same accent logic used by the other tabs, so the tab color can be driven from the current app theme or logo palette.
+### Responsive behavior
 
-### Mobile-first behavior
-
-- single-column layout on narrow screens,
-- two-column layout on larger screens,
-- keep the goals cards compact and touch-friendly.
+- single column on small screens,
+- two-column cards on larger screens,
+- keep the summary card prominent,
+- let the history section scroll independently if needed.
 
 ---
 
-## 5. Implementation order
+## 8. Implementation phases
 
-### Phase 1 — state wiring
+### Phase 1 — websocket + store integration
 
-- add a tamagotchi store,
-- connect it to websocket messages in [web-app/src/App.svelte](web-app/src/App.svelte),
-- make sure `full_sync` and `points_sync` populate the new state,
-- make sure `get_points` is requested on connect.
+#### Scope
 
-Acceptance criteria:
+- add the tamagotchi store,
+- connect it to the existing websocket message processing in [web-app/src/App.svelte](web-app/src/App.svelte),
+- request points data on connect,
+- normalize the incoming points payload into UI state.
 
-- the app shows total seeds, today’s seeds, and level immediately after connect,
-- updates appear when the device broadcasts new points.
+#### Files
 
-### Phase 2 — goals UI
+- [web-app/src/App.svelte](web-app/src/App.svelte)
+- [web-app/src/lib/stores/tamagotchi.js](web-app/src/lib/stores/tamagotchi.js)
+
+#### Acceptance criteria
+
+- the app loads the points summary without manual refresh,
+- the UI updates when the device sends new points data,
+- the store exposes a stable state object that components can consume.
+
+### Phase 2 — summary and goal list UI
+
+#### Scope
 
 - build the summary card,
-- build the 3 goal cards,
-- support editing labels/metrics/targets,
-- support toggling completion.
+- render the three goal cards,
+- show completion state visually,
+- add simple empty-state messaging.
 
-Acceptance criteria:
+#### Files
 
-- users can view and edit all three goals,
-- completion updates reflect the current backend state.
+- [web-app/src/lib/components/TamagotchiPage.svelte](web-app/src/lib/components)
+- [web-app/src/lib/components/SeedsSummaryCard.svelte](web-app/src/lib/components)
+- [web-app/src/lib/components/DailyGoalsPanel.svelte](web-app/src/lib/components)
 
-### Phase 3 — streaks and history
+#### Acceptance criteria
 
-- render streak chips using the `streaks` payload,
-- render the history feed with readable labels,
-- display a friendly explanation for each reward event.
+- users can see all three goals immediately,
+- the UI communicates done vs not done clearly,
+- the layout is responsive and clean.
 
-Acceptance criteria:
+### Phase 3 — goal editing and save flow
 
-- the UI shows today’s progress and streak summaries,
-- history events are understandable without reading raw reason codes.
+#### Scope
 
-### Phase 4 — plant placeholder
+- add the goal editor sheet,
+- allow editing labels and targets,
+- allow toggling done/undone,
+- send the correct message to the firmware.
 
-- add the plant preview section,
-- keep it visually separate so the later growth-stage work can slot in cleanly.
+#### Files
 
-Acceptance criteria:
+- [web-app/src/lib/components/GoalEditorSheet.svelte](web-app/src/lib/components)
+- [web-app/src/lib/stores/tamagotchi.js](web-app/src/lib/stores/tamagotchi.js)
 
-- the page has a dedicated plant area ready for later art and growth animation.
+#### Acceptance criteria
+
+- editing a goal updates the UI immediately,
+- save operations send the right request to the device,
+- the UI remains consistent after a successful change.
+
+### Phase 4 — streaks and history feed
+
+#### Scope
+
+- render streak chips with the current multiplier,
+- show the last reward events in a readable list,
+- translate reward reasons into friendly labels.
+
+#### Files
+
+- [web-app/src/lib/components/StreaksPanel.svelte](web-app/src/lib/components)
+- [web-app/src/lib/components/ActivityLogPanel.svelte](web-app/src/lib/components)
+
+#### Acceptance criteria
+
+- the streak section is understandable without technical knowledge,
+- recent activity is readable and sorted newest-first,
+- reward descriptions are friendly and not raw.
+
+### Phase 5 — plant placeholder and polish
+
+#### Scope
+
+- add the placeholder plant preview area,
+- connect its visual state to the current level,
+- finish microcopy, spacing, and transitions.
+
+#### Files
+
+- [web-app/src/lib/components/PlantPreview.svelte](web-app/src/lib/components)
+- [web-app/src/style.css](web-app/src/style.css)
+
+#### Acceptance criteria
+
+- the page contains a dedicated plant area,
+- the plant preview feels intentionally placed for future growth work,
+- the full page feels cohesive and polished.
 
 ---
 
-## 6. Recommended local UI persistence
+## 9. Edge cases and robustness
 
-The web app should keep its own local draft state for:
+The implementation should handle these cases cleanly:
 
-- in-progress goal edits,
-- selected sub-tab,
-- maybe collapsed/expanded sections.
+- no points data yet,
+- missing goal labels,
+- missing streak data,
+- very long goal labels,
+- empty history,
+- a device that reconnects after being offline,
+- a user editing a goal while the device sends a live update.
 
-This should be stored in `localStorage` and should not override the firmware’s authoritative state.
+### Expected behavior
+
+- the UI should not crash if a field is missing,
+- it should fall back to an empty or neutral placeholder,
+- it should preserve local draft input while waiting for the next sync.
 
 ---
 
-## 7. Final recommendation
+## 10. Testing plan
 
-Implement this as a thin Svelte view over the existing ESP32 points system rather than creating a second parallel state model.
+### Manual testing
 
-That keeps the architecture simple:
+- connect to the device and confirm the page loads correctly,
+- edit each of the three goals,
+- toggle completion on and off,
+- verify that point totals update as expected,
+- confirm the history panel remains readable after multiple events,
+- verify the layout on a phone-sized viewport.
 
-- ESP32/LVGL = source of truth,
-- websocket = transport,
-- Svelte store = normalized UI state,
-- localStorage = UI-only draft persistence.
+### Future automated checks
 
-This is the cleanest way to avoid duplicating logic and to keep the Svelte app aligned with the LVGL app.
+- unit tests for the store normalization functions,
+- component tests for empty states and goal editing,
+- a small regression test for the reason-label mapping.
+
+---
+
+## 11. Risks and open questions
+
+### Risks
+
+- the websocket payload shape may evolve slightly,
+- reason codes may need a more expressive label map,
+- the plant section may need artwork later and should stay flexible.
+
+### Open questions
+
+- should the goal editor be a modal or a slide-over panel?
+- should streaks be displayed as chips or a compact grid?
+- should the plant preview be static for now or animated later?
+
+These can be decided during implementation without blocking the first milestone.
+
+---
+
+## 12. Recommended implementation sequence
+
+The safest order is:
+
+1. wire the store and websocket bridge,
+2. render the summary and goals cards,
+3. add goal editing,
+4. add streak and history panels,
+5. add the plant placeholder and polish.
+
+This keeps the work incremental and makes each milestone demonstrable.
+
+---
+
+## 13. Final recommendation
+
+Implement the feature as a thin web UI over the existing ESP32 points system rather than creating a parallel model. That keeps the product aligned with the current app architecture and makes future parity work much easier.
+
+In practice, that means:
+
+- ESP32/LVGL remains the source of truth,
+- websocket remains the transport,
+- Svelte store becomes the normalized view layer,
+- localStorage is reserved for lightweight UI draft state only.
