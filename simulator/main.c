@@ -3,6 +3,7 @@
 #include <string.h>
 #include <assert.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "lvgl.h"
 #include "SDL.h"
@@ -23,6 +24,7 @@ static bool g_script_pending_release = false;
 static bool g_script_holding = false;
 static uint32_t g_hold_start_ms = 0;
 static uint32_t g_last_op_ms = 0;
+static bool g_headless = false;
 
 static void inject_encoder(int enc_diff, lv_indev_state_t state)
 {
@@ -69,9 +71,13 @@ int main(int argc, char *argv[])
         if (strncmp(argv[i], "--script=", 9) == 0) {
             g_script = argv[i] + 9;
         }
+        if (strcmp(argv[i], "--headless") == 0) {
+            g_headless = true;
+        }
     }
 
     printf("=== StudyBud LVGL Simulator ===\n");
+    if (g_headless) printf("  Mode: HEADLESS (no display)\n");
     printf("Controls:\n");
     printf("  Left/Right arrows = Encoder rotate\n");
     printf("  Enter             = Encoder press\n");
@@ -81,6 +87,7 @@ int main(int argc, char *argv[])
     else printf("\n");
 
     lv_init();
+    if (g_headless) sdl_driver_set_headless(true);
     sdl_driver_init();
 
     if (g_script) {
@@ -104,7 +111,9 @@ int main(int argc, char *argv[])
         sdl_driver_present();
 
         uint32_t now = lv_tick_get();
-        if (g_script && g_script_pos < (int)strlen(g_script)) {
+        bool script_done = g_script && g_script_pos >= (int)strlen(g_script);
+
+        if (g_script && !script_done) {
             if (g_script_holding) {
                 if (now - g_hold_start_ms >= LONG_PRESS_MS + 100) {
                     inject_encoder(0, LV_INDEV_STATE_REL);
@@ -127,7 +136,16 @@ int main(int argc, char *argv[])
             }
         }
 
-        SDL_Delay(ms_delay < 5 ? 5 : ms_delay);
+        if (g_headless && g_script && script_done) {
+            printf("[headless] Script complete, exiting.\n");
+            break;
+        }
+
+        if (g_headless) {
+            usleep((ms_delay < 5 ? 5 : ms_delay) * 1000);
+        } else {
+            SDL_Delay(ms_delay < 5 ? 5 : ms_delay);
+        }
     }
 
     return 0;

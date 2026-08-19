@@ -13,3 +13,4 @@ void sdl_driver_screenshot(const char *path);
 /* When set, sdl_encoder_read stops forwarding encoder events to
    ui_manager (used by scripted runs so the script owns all input). */
 void sdl_driver_set_script_mode(bool active);
+void sdl_driver_set_headless(bool active);
