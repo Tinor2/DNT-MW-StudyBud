@@ -2,7 +2,7 @@
 
 Automated version log tracking the evolution of the StudyBud LVGL embedded app and its companion Svelte web dashboard.
 
-Screenshots captured via headless SDL simulator with automated navigation scripts and Chrome headless for web screenshots.
+Screenshots captured via headless SDL simulator with automated navigation scripts and Puppeteer (Chrome headless) for web screenshots in light mode.
 
 ---
 
@@ -37,7 +37,7 @@ Added breathing exercise screen with guided inhale/exhale animation.
 
 Added Backgrounds menu item and idle background selection screen with animated tree theme.
 
-**Menu:** Home · Timer · Todos · Water · Breathing · Settings · Backgrounds
+**Menu:** Home · Timer · Todos · Water · Breathing · Backgrounds · Settings
 
 | Home | Menu | Backgrounds |
 |------|------|-------------|
@@ -50,7 +50,7 @@ Added Backgrounds menu item and idle background selection screen with animated t
 
 Added Sleep tracking screen with sleep duration and quality logging.
 
-**Menu:** Home · Timer · Todos · Water · Breathing · Settings · Backgrounds · Sleep
+**Menu:** Home · Timer · Todos · Water · Breathing · Backgrounds · Sleep · Settings
 
 | Home | Menu | Sleep |
 |------|------|-------|
@@ -63,7 +63,7 @@ Added Sleep tracking screen with sleep duration and quality logging.
 
 Added custom SVG-based logos to each menu item for a polished visual identity.
 
-**Menu:** Home · Timer · Todos · Water · Breathing · Settings · Backgrounds · Sleep
+**Menu:** Home · Timer · Todos · Water · Breathing · Backgrounds · Sleep · Settings
 
 | Home | Menu with Logos |
 |------|-----------------|
@@ -71,45 +71,79 @@ Added custom SVG-based logos to each menu item for a polished visual identity.
 
 ---
 
-## 07 — Pomodoro Timer App
+## 07 — Pomodoro Timer App (v1)
 **Date:** 2026-07-26 | **Commit:** `5bf5a79`
 
-Added full timer screen with Pomodoro presets (25/5, 50/10, custom) and countdown display.
+First timer implementation: horizontal carousel with a default "Pomodoro" preset (25/5/15), action mode (Play/Edit), running countdown screen, and preset editor.
 
-**Menu:** Home · Timer · Todos · Water · Breathing · Settings · Backgrounds · Sleep
+**Menu:** Home · Timer · Todos · Water · Breathing · Backgrounds · Sleep · Settings
 
-| Home | Menu | Timer Presets |
-|------|------|---------------|
-| ![Home](07-timer-app-2026-07-26/lvgl-home-2026-07-26.png) | ![Menu](07-timer-app-2026-07-26/lvgl-menu-2026-07-26.png) | ![Timer Presets](07-timer-app-2026-07-26/lvgl-timer-presets-2026-07-26.png) |
+| Preset Carousel | Timer Running | Timer Edit |
+|-----------------|---------------|------------|
+| ![Presets](07-timer-app-2026-07-26/lvgl-timer-presets-v1-2026-07-26.png) | ![Running](07-timer-app-2026-07-26/lvgl-timer-running-v1-2026-07-26.png) | ![Edit](07-timer-app-2026-07-26/lvgl-timer-edit-v1-2026-07-26.png) |
+
+---
+
+## 07b — Timer Save Fix
+**Date:** 2026-07-27 | **Commit:** `0c3c6a0`
+
+Fixed bug where creating a new timer preset overwrote the first entry instead of adding. Updated timer_store to use active_preset_id for edit detection.
+
+| Preset Carousel | Timer Running | Timer Edit |
+|-----------------|---------------|------------|
+| ![Presets](07b-timer-save-fix-2026-07-27/lvgl-timer-presets-v2-2026-07-27.png) | ![Running](07b-timer-save-fix-2026-07-27/lvgl-timer-running-v2-2026-07-27.png) | ![Edit](07b-timer-save-fix-2026-07-27/lvgl-timer-edit-v2-2026-07-27.png) |
 
 ---
 
 ## 08 — Svelte Web Dashboard (Basic)
 **Date:** 2026-07-23 | **Commit:** `f4cb574`
 
-First version of the companion Svelte web app for remote monitoring of the LVGL device via WiFi/Bluetooth.
+First version of the companion Svelte web app. Raw WebSocket debug console for communicating with the ESP32 device — connection panel, message log, and send interface.
 
-| Svelte Basic |
-|--------------|
-| ![Svelte Basic](08-svelte-started-2026-07-23/svelte-basic-2026-07-23.png) |
+| WebSocket Debug Console |
+|-------------------------|
+| ![Svelte Basic](08-svelte-basic-2026-07-23/svelte-basic-ws-console-2026-07-23.png) |
 
 ---
 
 ## 09 — Svelte Web Dashboard (Polished)
 **Date:** 2026-07-30 | **Commit:** `48e7509`
 
-Refined Svelte dashboard with shared app_state, live display sync, and improved networking layers.
+Full tabbed dashboard with Home overview, Timer presets, Todos, Breathing, Sleep, and Settings. Event log overlay, notification toasts, and light/dark theme system.
 
-| Svelte Polished |
-|-----------------|
-| ![Svelte Polished](09-svelte-polished-2026-07-30/svelte-polished-2026-07-30.png) |
+| Home Dashboard | Timer Presets | Todos |
+|----------------|---------------|-------|
+| ![Home](09-svelte-polished-2026-07-30/svelte-home-dashboard-2026-07-30.png) | ![Timer](09-svelte-polished-2026-07-30/svelte-timer-presets-2026-07-30.png) | ![Todos](09-svelte-polished-2026-07-30/svelte-todos-2026-07-30.png) |
+
+| Breathing | Sleep | Settings |
+|-----------|-------|----------|
+| ![Breathing](09-svelte-polished-2026-07-30/svelte-breathing-2026-07-30.png) | ![Sleep](09-svelte-polished-2026-07-30/svelte-sleep-2026-07-30.png) | ![Settings](09-svelte-polished-2026-07-30/svelte-settings-2026-07-30.png) |
+
+---
+
+## 09b — Svelte Web Dashboard (Latest)
+**Date:** 2026-08-01 | **Commit:** `4fdd1fe`
+
+Full-featured dashboard with 9 tabs, pixel-art logos, Tamagotchi plant + goals, bar charts, analytics, health insights, reading light, and streak system.
+
+| Home | Tamagotchi Plant | Tamagotchi Goals |
+|------|------------------|------------------|
+| ![Home](09b-svelte-latest-2026-08-01/svelte-home-dashboard-2026-08-01.png) | ![Tamagotchi](09b-svelte-latest-2026-08-01/svelte-tamagotchi-plant-2026-08-01.png) | ![Goals](09b-svelte-latest-2026-08-01/svelte-tamagotchi-goals-2026-08-01.png) |
+
+| Breathing | Water | Sleep |
+|-----------|-------|-------|
+| ![Breathing](09b-svelte-latest-2026-08-01/svelte-breathing-2026-08-01.png) | ![Water](09b-svelte-latest-2026-08-01/svelte-water-2026-08-01.png) | ![Sleep](09b-svelte-latest-2026-08-01/svelte-sleep-2026-08-01.png) |
+
+| Todos | Timer | Stretch Break | Settings |
+|-------|-------|---------------|----------|
+| ![Todos](09b-svelte-latest-2026-08-01/svelte-todos-2026-08-01.png) | ![Timer](09b-svelte-latest-2026-08-01/svelte-timer-presets-2026-08-01.png) | ![Stretch](09b-svelte-latest-2026-08-01/svelte-stretch-break-2026-08-01.png) | ![Settings](09b-svelte-latest-2026-08-01/svelte-settings-2026-08-01.png) |
 
 ---
 
 ## 10 — Latest Build (Current)
 **Date:** 2026-08-02 | **Branch:** `fix_timer_LVLGL`
 
-All features combined: Tamagotchi pet, Stretch Break, Timer, Todos, Breathing, Water, Sleep, Backgrounds, and Settings. 10-item menu with full navigation.
+All features combined: Tamagotchi pet, Stretch Break, Timer (presets + edit), Todos, Breathing, Water, Sleep, Backgrounds, and Settings. 10-item menu with full navigation.
 
 **Menu:** Home · Tamagotchi · Breathing · Water · Stretch Break · Sleep · Timer · Todos · Backgrounds · Settings
 
@@ -120,3 +154,9 @@ All features combined: Tamagotchi pet, Stretch Break, Timer, Todos, Breathing, W
 | Stretch Break | Sleep | Timer | Todos | Backgrounds |
 |---------------|-------|-------|-------|-------------|
 | ![Stretch](10-latest-final-2026-08-02/lvgl-stretch-break-2026-08-02.png) | ![Sleep](10-latest-final-2026-08-02/lvgl-sleep-2026-08-02.png) | ![Timer](10-latest-final-2026-08-02/lvgl-timer-2026-08-02.png) | ![Todos](10-latest-final-2026-08-02/lvgl-todos-2026-08-02.png) | ![Backgrounds](10-latest-final-2026-08-02/lvgl-backgrounds-2026-08-02.png) |
+
+### Timer Sub-Screens (Latest)
+
+| Timer Presets | Timer Edit |
+|---------------|------------|
+| ![Timer Presets](10-latest-final-2026-08-02/lvgl-timer-presets-latest-2026-08-02.png) | ![Timer Edit](10-latest-final-2026-08-02/lvgl-timer-edit-latest-2026-08-02.png) |
