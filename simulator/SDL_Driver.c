@@ -262,6 +262,10 @@ void sdl_driver_init(void)
     if (g_headless) {
         printf("[SDL] Initializing in HEADLESS mode (%dx%d)...\n", SIM_LCD_H_RES, SIM_LCD_V_RES);
 
+        /* Initialize SDL timer subsystem so SDL_GetTicks() works
+           (LVGL uses it as its tick source via LV_TICK_CUSTOM). */
+        SDL_Init(SDL_INIT_TIMER);
+
         lv_disp_draw_buf_init(&disp_buf, buf1, NULL, SIM_LCD_H_RES * SIM_LCD_V_RES);
 
         lv_disp_drv_init(&disp_drv);
