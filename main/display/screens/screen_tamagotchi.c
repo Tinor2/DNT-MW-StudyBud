@@ -42,6 +42,14 @@ void sdl_driver_screenshot(const char *path);
 #define MIN_VISIBLE_W 120
 #define FADE_ZONE     60
 
+/* Opacity tweening is relative to the visible goals area (~300px below the
+ * summary card), not the full 480px screen.  The summary card ends at y≈182
+ * and the screen bottom is y=480, giving a visible band of ≈298px centred
+ * at y≈331 with a half-height of ≈149. */
+#define OPA_CY        331
+#define OPA_R         149
+#define OPA_FADE      37
+
 #define GOALS_TOP       220
 #define GOALS_SPACING   64
 #define GOALS_COUNT     (MAX_DAILY_GOALS + 2)
@@ -519,12 +527,19 @@ static void apply_radial_scroll(void)
         lv_obj_set_x(row, new_x);
 
         lv_opa_t opa;
-        if (ady < FADE_ZONE) {
-            opa = LV_OPA_COVER;
+        if (focused_row) {
+            lv_coord_t focus_mid = focused_row->coords.y1 + lv_obj_get_height(focused_row) / 2;
+            lv_coord_t opa_dy = mid_y - focus_mid;
+            lv_coord_t opa_ady = opa_dy < 0 ? -opa_dy : opa_dy;
+            if (opa_ady < OPA_FADE) {
+                opa = LV_OPA_COVER;
+            } else {
+                float fade = 1.0f - (float)(opa_ady - OPA_FADE) / (float)(OPA_R - OPA_FADE);
+                if (fade < 0.15f) fade = 0.15f;
+                opa = (lv_opa_t)(fade * 255);
+            }
         } else {
-            float fade = 1.0f - (float)(ady - FADE_ZONE) / (float)(DISPLAY_R - FADE_ZONE);
-            if (fade < 0.15f) fade = 0.15f;
-            opa = (lv_opa_t)(fade * 255);
+            opa = LV_OPA_COVER;
         }
         lv_obj_set_style_opa(row, opa, 0);
     }
@@ -656,7 +671,7 @@ static void transition_to_goals(void)
 
     show_widget(lbl_title);
     show_widget(summary_card);
-    show_widget(goals_header);
+    // show_widget(goals_header);
     show_widget(goals_container);
     show_widget(goals_arrow_down);
 
@@ -1064,26 +1079,26 @@ lv_obj_t *screen_tamagotchi_create(void)
 
     /* ---- PET state ---- */
     chip_level = lv_obj_create(screen);
-    lv_obj_align(chip_level, LV_ALIGN_TOP_MID, 0, 62);
+    lv_obj_align(chip_level, LV_ALIGN_TOP_MID, 0, 50);
     lv_obj_set_size(chip_level, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
     lv_obj_set_style_bg_color(chip_level, LV_COLOR_BG_CARD, 0);
-    lv_obj_set_style_bg_opa(chip_level, LV_OPA_80, 0);
+    lv_obj_set_style_bg_opa(chip_level, LV_OPA_30, 0);
     lv_obj_set_style_radius(chip_level, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_border_width(chip_level, 0, 0);
     lv_obj_set_style_shadow_width(chip_level, 0, 0);
-    lv_obj_set_style_pad_ver(chip_level, 5, 0);
-    lv_obj_set_style_pad_hor(chip_level, 14, 0);
+    lv_obj_set_style_pad_ver(chip_level, 4, 0);
+    lv_obj_set_style_pad_hor(chip_level, 12, 0);
     lv_obj_clear_flag(chip_level, LV_OBJ_FLAG_SCROLLABLE);
     lbl_chip_level = lv_label_create(chip_level);
     lv_label_set_text(lbl_chip_level, "Level 1 · 0 seeds");
-    lv_obj_set_style_text_font(lbl_chip_level, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_font(lbl_chip_level, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(lbl_chip_level, TITLE_TEXT, 0);
     lv_obj_center(lbl_chip_level);
     lv_obj_add_flag(chip_level, LV_OBJ_FLAG_HIDDEN);
 
     bar_level = lv_bar_create(screen);
-    lv_obj_set_size(bar_level, 220, 8);
-    lv_obj_align(bar_level, LV_ALIGN_TOP_MID, 0, 96);
+    lv_obj_set_size(bar_level, 160, 4);
+    lv_obj_align(bar_level, LV_ALIGN_TOP_MID, 0, 80);
     lv_obj_set_style_radius(bar_level, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(bar_level, LV_COLOR_SURFACE, 0);
     lv_obj_set_style_bg_opa(bar_level, LV_OPA_COVER, 0);
@@ -1095,43 +1110,43 @@ lv_obj_t *screen_tamagotchi_create(void)
 
     pet_stats = lv_obj_create(screen);
     lv_obj_set_size(pet_stats, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-    lv_obj_align(pet_stats, LV_ALIGN_TOP_MID, 0, 116);
+    lv_obj_align(pet_stats, LV_ALIGN_TOP_MID, 0, 96);
     lv_obj_set_style_bg_opa(pet_stats, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(pet_stats, 0, 0);
     lv_obj_set_style_shadow_width(pet_stats, 0, 0);
     lv_obj_set_style_pad_all(pet_stats, 0, 0);
-    lv_obj_set_style_pad_column(pet_stats, 10, 0);
+    lv_obj_set_style_pad_column(pet_stats, 8, 0);
     lv_obj_clear_flag(pet_stats, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_flex_flow(pet_stats, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(pet_stats, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
     pill_today = lv_obj_create(pet_stats);
-    lv_obj_set_size(pill_today, LV_SIZE_CONTENT, 28);
+    lv_obj_set_size(pill_today, LV_SIZE_CONTENT, 24);
     lv_obj_set_style_bg_color(pill_today, LV_COLOR_BG_CARD, 0);
-    lv_obj_set_style_bg_opa(pill_today, LV_OPA_80, 0);
-    lv_obj_set_style_radius(pill_today, 14, 0);
+    lv_obj_set_style_bg_opa(pill_today, LV_OPA_30, 0);
+    lv_obj_set_style_radius(pill_today, 12, 0);
     lv_obj_set_style_border_width(pill_today, 0, 0);
     lv_obj_set_style_shadow_width(pill_today, 0, 0);
-    lv_obj_set_style_pad_hor(pill_today, 12, 0);
+    lv_obj_set_style_pad_hor(pill_today, 10, 0);
     lv_obj_clear_flag(pill_today, LV_OBJ_FLAG_SCROLLABLE);
     lbl_pill_today = lv_label_create(pill_today);
     lv_label_set_text(lbl_pill_today, "Today +0 seeds");
-    lv_obj_set_style_text_font(lbl_pill_today, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(lbl_pill_today, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_color(lbl_pill_today, LV_COLOR_TEXT, 0);
     lv_obj_center(lbl_pill_today);
 
     pill_streak = lv_obj_create(pet_stats);
-    lv_obj_set_size(pill_streak, LV_SIZE_CONTENT, 28);
+    lv_obj_set_size(pill_streak, LV_SIZE_CONTENT, 24);
     lv_obj_set_style_bg_color(pill_streak, LV_COLOR_BG_CARD, 0);
-    lv_obj_set_style_bg_opa(pill_streak, LV_OPA_80, 0);
-    lv_obj_set_style_radius(pill_streak, 14, 0);
+    lv_obj_set_style_bg_opa(pill_streak, LV_OPA_30, 0);
+    lv_obj_set_style_radius(pill_streak, 12, 0);
     lv_obj_set_style_border_width(pill_streak, 0, 0);
     lv_obj_set_style_shadow_width(pill_streak, 0, 0);
-    lv_obj_set_style_pad_hor(pill_streak, 12, 0);
+    lv_obj_set_style_pad_hor(pill_streak, 10, 0);
     lv_obj_clear_flag(pill_streak, LV_OBJ_FLAG_SCROLLABLE);
     lbl_pill_streak = lv_label_create(pill_streak);
     lv_label_set_text(lbl_pill_streak, "Start a streak");
-    lv_obj_set_style_text_font(lbl_pill_streak, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(lbl_pill_streak, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_color(lbl_pill_streak, LV_COLOR_TEXT, 0);
     lv_obj_center(lbl_pill_streak);
     lv_obj_add_flag(pet_stats, LV_OBJ_FLAG_HIDDEN);
@@ -1140,15 +1155,16 @@ lv_obj_t *screen_tamagotchi_create(void)
     lv_label_set_text(lbl_pet_hint, "Your plant grows as you earn seeds");
     lv_obj_set_style_text_font(lbl_pet_hint, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(lbl_pet_hint, darken_text_color(ACCENT, 0.5f), 0);
-    lv_obj_set_style_text_opa(lbl_pet_hint, LV_OPA_60, 0);
-    lv_obj_align(lbl_pet_hint, LV_ALIGN_TOP_MID, 0, 154);
+    lv_obj_set_style_text_opa(lbl_pet_hint, LV_OPA_30, 0);
+    lv_obj_align(lbl_pet_hint, LV_ALIGN_TOP_MID, 0, 130);
     lv_obj_add_flag(lbl_pet_hint, LV_OBJ_FLAG_HIDDEN);
 
     btn_goals = lv_btn_create(screen);
-    lv_obj_set_size(btn_goals, 140, 48);
+    lv_obj_set_size(btn_goals, 120, 40);
     lv_obj_align(btn_goals, LV_ALIGN_BOTTOM_MID, 0, -16);
-    lv_obj_set_style_radius(btn_goals, 24, 0);
-    lv_obj_set_style_bg_color(btn_goals, ACCENT_DARK, 0);
+    lv_obj_set_style_radius(btn_goals, 20, 0);
+    lv_obj_set_style_bg_color(btn_goals, LV_COLOR_BG_CARD, 0);
+    lv_obj_set_style_bg_opa(btn_goals, LV_OPA_40, 0);
     lv_obj_set_style_shadow_width(btn_goals, 0, 0);
     lv_obj_set_style_shadow_opa(btn_goals, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(btn_goals, 0, 0);
@@ -1156,7 +1172,7 @@ lv_obj_t *screen_tamagotchi_create(void)
     lv_obj_set_style_pad_all(btn_goals, 0, 0);
     lv_obj_t *lbl_goals = lv_label_create(btn_goals);
     lv_label_set_text(lbl_goals, "Goals");
-    lv_obj_set_style_text_font(lbl_goals, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_font(lbl_goals, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(lbl_goals, LV_COLOR_BG_CARD, 0);
     lv_obj_center(lbl_goals);
     lv_obj_add_flag(btn_goals, LV_OBJ_FLAG_HIDDEN);

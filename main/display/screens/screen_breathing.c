@@ -9,6 +9,8 @@
 
 static const char *TAG = "Screen_Breathing";
 
+extern const lv_font_t lv_font_montserrat_240;
+
 #define CYCLE_TIME_MS    3500
 #define MOTION_PCT       60
 #define MOTION_MS        (CYCLE_TIME_MS * MOTION_PCT / 100)
@@ -160,10 +162,8 @@ static void breath_hold_cb(lv_timer_t *timer)
     (void)timer;
     if (current_state != STATE_ACTIVE) return;
 
-    /* After OUT hold → cycle complete → increment counter */
+    /* After OUT hold → cycle fully done → check for completion */
     if (!current_inhale) {
-        cycle_count++;
-        lv_label_set_text_fmt(lbl_counter, "%d", cycle_count);
         if (cycle_count >= cycle_limit) {
             transition_to_complete();
             return;
@@ -177,6 +177,12 @@ static void breath_motion_ready_cb(lv_anim_t *a)
 {
     (void)a;
     if (current_state != STATE_ACTIVE) return;
+
+    /* Circle just hit its peak (fully expanded) → count the breath here */
+    if (current_inhale) {
+        cycle_count++;
+        lv_label_set_text_fmt(lbl_counter, "%d", cycle_count);
+    }
 
     if (current_hold_ms == 0) {
         breath_hold_cb(NULL);
@@ -293,6 +299,8 @@ static void transition_to_active(void)
     lv_obj_set_style_opa(badge, LV_OPA_COVER, 0);
     lv_obj_set_style_opa(lbl_badge_text, LV_OPA_COVER, 0);
     lv_obj_set_style_opa(lbl_counter, LV_OPA_40, 0);
+    /* Circle is opaque now — keep the counter visible on top of it */
+    lv_obj_move_foreground(lbl_counter);
 
     lv_label_set_text_fmt(lbl_counter, "%d", cycle_count);
     lv_obj_set_style_transform_width(badge, 0, 0);
@@ -536,20 +544,19 @@ lv_obj_t *screen_breathing_create(void)
     /* Counter number — large faded watermark BEHIND the badge */
     lbl_counter = lv_label_create(screen);
     lv_label_set_text(lbl_counter, "0");
-    lv_obj_set_style_text_font(lbl_counter, &lv_font_montserrat_48, 0);
+    lv_obj_set_style_text_font(lbl_counter, &lv_font_montserrat_240, 0);
     lv_obj_set_style_text_color(lbl_counter, LV_COLOR_TEXT_MUTED, 0);
     lv_obj_set_style_opa(lbl_counter, LV_OPA_60, 0);
-    lv_obj_set_style_transform_zoom(lbl_counter, 640, 0);
     lv_obj_align(lbl_counter, LV_ALIGN_CENTER, 0, 0);
     lv_obj_add_flag(lbl_counter, LV_OBJ_FLAG_HIDDEN);
 
-    /* Badge circle — expands from 100 to 280, semi-transparent so counter shows through */
+    /* Badge circle — expands from 100 to 280, fully opaque */
     badge = lv_obj_create(screen);
     lv_obj_set_size(badge, BADGE_BASE_SIZE, BADGE_BASE_SIZE);
     lv_obj_align(badge, LV_ALIGN_CENTER, 0, 0);
     lv_obj_set_style_radius(badge, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(badge, theme_accent(SCREEN_BREATHING), 0);
-    lv_obj_set_style_bg_opa(badge, 200, 0);
+    lv_obj_set_style_bg_opa(badge, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(badge, 0, 0);
     lv_obj_set_style_shadow_width(badge, 0, 0);
     lv_obj_set_style_pad_all(badge, 0, 0);

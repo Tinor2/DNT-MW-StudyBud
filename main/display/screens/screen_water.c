@@ -42,6 +42,11 @@ static void anim_set_border_width(void *var, int32_t val)
     if (var) lv_obj_set_style_border_width((lv_obj_t *)var, val, 0);
 }
 
+static void anim_set_outline_width(void *var, int32_t val)
+{
+    if (var) lv_obj_set_style_outline_width((lv_obj_t *)var, val, 0);
+}
+
 static void animate_style(lv_obj_t *obj, lv_anim_exec_xcb_t exec_cb,
                           int32_t from, int32_t to, uint32_t time, uint32_t delay)
 {
@@ -188,6 +193,8 @@ static void update_focus_styles(void)
     for (int i = 0; i < WATER_BTN_COUNT; i++) {
         if (!btns[i]) continue;
         bool focused = (i == focus_index);
+        animate_style(btns[i], (lv_anim_exec_xcb_t)anim_set_outline_width,
+                      focused ? 0 : 3, focused ? 3 : 0, FOCUS_ANIM_MS, 0);
         animate_style(btns[i], (lv_anim_exec_xcb_t)anim_set_border_width,
                       focused ? 0 : 4, focused ? 4 : 0, FOCUS_ANIM_MS, 0);
         animate_style(btns[i], (lv_anim_exec_xcb_t)anim_set_opa,
@@ -209,6 +216,11 @@ static void make_button(lv_obj_t **btn, const char *text, int x, int y, int w, i
     lv_obj_set_style_shadow_opa(*btn, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(*btn, 0, 0);
     lv_obj_set_style_border_color(*btn, LV_COLOR_WATER, 0);
+    /* Selection ring — drawn just outside the button, animated on focus */
+    lv_obj_set_style_outline_width(*btn, 0, 0);
+    lv_obj_set_style_outline_color(*btn, LV_COLOR_TEXT, 0);
+    lv_obj_set_style_outline_pad(*btn, 4, 0);
+    lv_obj_set_style_outline_opa(*btn, LV_OPA_COVER, 0);
     lv_obj_set_style_pad_all(*btn, 0, 0);
     lv_obj_t *lbl = lv_label_create(*btn);
     lv_label_set_text(lbl, text);
@@ -274,6 +286,11 @@ lv_obj_t *screen_water_create(void)
     lv_obj_set_style_shadow_opa(btn_goal, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(btn_goal, 0, 0);
     lv_obj_set_style_border_color(btn_goal, LV_COLOR_PRIMARY_LIGHT, 0);
+    /* Selection ring — drawn just outside the button, animated on focus */
+    lv_obj_set_style_outline_width(btn_goal, 0, 0);
+    lv_obj_set_style_outline_color(btn_goal, LV_COLOR_TEXT, 0);
+    lv_obj_set_style_outline_pad(btn_goal, 4, 0);
+    lv_obj_set_style_outline_opa(btn_goal, LV_OPA_COVER, 0);
     lv_obj_set_style_pad_all(btn_goal, 0, 0);
     lv_obj_t *lbl_goal = lv_label_create(btn_goal);
     lv_label_set_text(lbl_goal, "Set Goal");
