@@ -4,41 +4,44 @@ idf_component_register(
         "display/lvgl_driver/LVGL_Driver.c"
         "display/encoder/encoder_input.c"
         "display/ui_manager.c"
+        "display/demo_mode.c"
         "display/screens/screen_home.c"
         "display/screens/screen_menu.c"
         "display/screens/screen_todos.c"
         "display/screens/screen_breathing.c"
         "display/screens/screen_idle_background.c"
-        "display/screens/screen_sleep.c"
-        "display/screens/screen_timer_presets.c"
-        "display/screens/screen_timer_edit.c"
-        "display/screens/screen_timer.c"
-        "display/screens/screen_tamagotchi.c"
-        "display/screens/screen_water.c"
+        "display/screens/screen_demo.c"
         "display/screens/screen_sedentary.c"
         "display/screens/screen_settings.c"
+        "display/screens/screen_sleep.c"
+        "display/screens/screen_tamagotchi.c"
+        "display/screens/screen_timer.c"
+        "display/screens/screen_timer_edit.c"
+        "display/screens/screen_timer_presets.c"
+        "display/screens/screen_water.c"
+        "display/fonts/lv_font_montserrat_240.c"
+        "display/utils/session_store.c"
+        "display/utils/persistence.c"
+        "display/utils/points_store.c"
+        "display/utils/sd_card.c"
+        "display/utils/sedentary_store.c"
+        "display/utils/sleep_store.c"
+        "display/utils/timer_store.c"
         "assets/idle_bg_tree.c"
         "assets/app_logo.c"
-        "assets/todo_logo.c"
-        "assets/timer_logo.c"
         "assets/breathing_logo.c"
-        "assets/sleeping_logo.c"
-        "assets/sedentary_logo.c"
-        "assets/tamagotchi_logo.c"
         "assets/plant_1_sprite.c"
         "assets/plant_2_sprite.c"
         "assets/plant_3_sprite.c"
+        "assets/sedentary_logo.c"
+        "assets/sleeping_logo.c"
         "assets/tamagotchi_backdrop.c"
-        "display/utils/session_store.c"
+        "assets/tamagotchi_logo.c"
+        "assets/timer_logo.c"
+        "assets/todo_logo.c"
         "networking/wifi_manager.c"
-        "networking/web_server.c"
         "networking/app_state.c"
-        "display/utils/sleep_store.c"
-        "display/utils/sedentary_store.c"
-        "display/utils/timer_store.c"
-        "display/utils/points_store.c"
-        "display/utils/sd_card.c"
-        "display/utils/persistence.c"
+        "networking/web_server.c"
     INCLUDE_DIRS
         "."
         "display"
@@ -52,22 +55,26 @@ idf_component_register(
         ESP32-S3-LCD-2.8C-V1
         lvgl
         esp_wifi
-        esp_http_server
-        nvs_flash
-        esp_netif
-        fatfs
-        sdmmc
+        wpa_supplicant
     PRIV_REQUIRES
         driver
         esp_driver_gpio
         esp_driver_ledc
-        esp_driver_pcnt
         esp_driver_spi
+        esp_driver_pcnt
         esp_lcd
         esp_timer
         freertos
         heap
         log
+        nvs_flash
+        esp_netif
+        esp_event
+        esp_driver_sdspi
+        sdmmc
+        vfs
+        fatfs
+        esp_http_server
+    EMBED_FILES
+        "certs/school_ca.pem"
 )
-
-target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-error=deprecated-enum-enum-conversion)

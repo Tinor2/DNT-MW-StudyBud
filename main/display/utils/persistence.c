@@ -19,6 +19,7 @@ static const char *TAG = "Persistence";
 #define SAVE_BUF_SIZE 32768
 
 static volatile bool s_dirty = false;
+static volatile bool s_suspended = false;
 static esp_timer_handle_t s_save_timer = NULL;
 
 static void json_escape(const char *in, char *out, size_t out_len)
@@ -650,6 +651,7 @@ bool persistence_save(void)
 static void save_timer_cb(void *arg)
 {
     (void)arg;
+    if (s_suspended) return;
     if (s_dirty) {
         if (persistence_save()) {
             s_dirty = false;
@@ -662,7 +664,18 @@ static void save_timer_cb(void *arg)
 
 void persistence_mark_dirty(void)
 {
-    s_dirty = true;
+    if (!s_suspended) s_dirty = true;
+}
+
+void persistence_set_suspended(bool suspended)
+{
+    s_suspended = suspended;
+    ESP_LOGI(TAG, "Persistence %s", suspended ? "suspended" : "resumed");
+}
+
+bool persistence_is_suspended(void)
+{
+    return s_suspended;
 }
 
 bool persistence_init(void)

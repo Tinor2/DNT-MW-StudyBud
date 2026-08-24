@@ -51,6 +51,7 @@ static const menu_item_t menu_items[] = {
     { LV_SYMBOL_LIST,      "Todos",         SCREEN_TODOS,      &todo_logo },
     { LV_SYMBOL_IMAGE,     "Backgrounds",   SCREEN_BACKGROUNDS, NULL },
     { LV_SYMBOL_SETTINGS,  "Settings",      SCREEN_SETTINGS,   NULL },
+    { LV_SYMBOL_PLAY,      "Demo",          SCREEN_DEMO,       NULL },
 };
 static const int menu_count = sizeof(menu_items) / sizeof(menu_items[0]);
 

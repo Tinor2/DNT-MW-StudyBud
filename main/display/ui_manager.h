@@ -21,6 +21,7 @@ typedef enum {
     SCREEN_NOTIFICATIONS,
     SCREEN_SLEEP,
     SCREEN_TAMAGOTCHI,
+    SCREEN_DEMO,
     SCREEN_COUNT
 } screen_id_t;
 

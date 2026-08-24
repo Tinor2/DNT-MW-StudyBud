@@ -53,6 +53,9 @@ add_library(studybud_screens STATIC
     ${SCREEN_DIR}/screens/screen_water.c
     ${SCREEN_DIR}/screens/screen_sedentary.c
     ${SCREEN_DIR}/screens/screen_settings.c
+    ${SCREEN_DIR}/screens/screen_demo.c
+    ${SCREEN_DIR}/fonts/lv_font_montserrat_240.c
+    ${SCREEN_DIR}/demo_mode.c
     ${SCREEN_DIR}/../assets/idle_bg_tree.c
     ${SCREEN_DIR}/../assets/app_logo.c
     ${SCREEN_DIR}/../assets/todo_logo.c

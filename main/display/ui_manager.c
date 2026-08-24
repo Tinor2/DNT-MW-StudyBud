@@ -12,6 +12,8 @@
 #include "screens/screen_water.h"
 #include "screens/screen_settings.h"
 #include "screens/screen_sedentary.h"
+#include "screens/screen_demo.h"
+#include "demo_mode.h"
 #include "../utils/sedentary_store.h"
 #include "app_state.h"
 #include "studybud_theme.h"
@@ -421,6 +423,7 @@ void ui_manager_init(void)
     screens[SCREEN_WATER] = screen_water_create();
     screens[SCREEN_SEDENTARY] = screen_sedentary_create();
     screens[SCREEN_SETTINGS] = screen_settings_create();
+    screens[SCREEN_DEMO] = screen_demo_create();
 
     /* Register event handlers */
     screen_event_handlers[SCREEN_HOME] = screen_home_encoder_event;
@@ -436,6 +439,7 @@ void ui_manager_init(void)
     screen_event_handlers[SCREEN_WATER] = screen_water_encoder_event;
     screen_event_handlers[SCREEN_SEDENTARY] = screen_sedentary_encoder_event;
     screen_event_handlers[SCREEN_SETTINGS] = screen_settings_encoder_event;
+    screen_event_handlers[SCREEN_DEMO] = screen_demo_encoder_event;
 
     /* Load home screen as default */
     lv_scr_load(screens[SCREEN_HOME]);
@@ -487,6 +491,9 @@ void ui_manager_switch_screen(screen_id_t screen)
     case SCREEN_SEDENTARY:
         screen_sedentary_refresh();
         break;
+    case SCREEN_DEMO:
+        screen_demo_refresh();
+        break;
     default:
         break;
     }
@@ -524,6 +531,84 @@ void ui_manager_encoder_event(lv_indev_data_t *data)
                 sedentary_store_enter_break();
                 ui_manager_switch_screen(SCREEN_SEDENTARY);
             }
+        }
+        return;
+    }
+
+    /* Demo mode: intercept input during INSTRUCTION checkpoints,
+       pass through during WAIT_ACTION checkpoints so user can interact */
+    if (demo_mode_is_active()) {
+        /* Task mode — let input pass through to underlying screen.
+           After the user completes the task, demo_mode_check_task_complete()
+           will detect it and show the overlay.  Long press always exits. */
+        if (demo_mode_is_task_active()) {
+            if (data->enc_diff != 0 && screen_event_handlers[current_screen]) {
+                app_state_broadcast_encoder_event(data->enc_diff > 0 ? "cw" : "ccw", "none");
+                lv_indev_data_t fwd = {0};
+                fwd.enc_diff = data->enc_diff;
+                fwd.state = LV_INDEV_STATE_REL;
+                screen_event_handlers[current_screen](&fwd);
+            }
+            if (data->state == LV_INDEV_STATE_PR && !waiting_for_release) {
+                press_start_tick = lv_tick_get();
+                waiting_for_release = true;
+                long_press_fired = false;
+                return;
+            }
+            if (waiting_for_release && data->state == LV_INDEV_STATE_PR) {
+                if (!long_press_fired && lv_tick_elaps(press_start_tick) >= LONG_PRESS_MS) {
+                    long_press_fired = true;
+                    demo_mode_stop(true);
+                }
+                return;
+            }
+            if (data->state == LV_INDEV_STATE_REL && waiting_for_release) {
+                bool was_long = long_press_fired;
+                waiting_for_release = false;
+                press_start_tick = 0;
+                long_press_fired = false;
+                if (was_long) return;
+                /* Short press — forward to screen handler */
+                if (current_screen == SCREEN_MENU) {
+                    screen_id_t sel = screen_menu_get_selection();
+                    if (sel != SCREEN_COUNT) { ui_manager_switch_screen(sel); return; }
+                }
+                if (screen_event_handlers[current_screen]) {
+                    lv_indev_data_t pr = {0};
+                    pr.state = LV_INDEV_STATE_PR;
+                    pr.enc_diff = 0;
+                    screen_event_handlers[current_screen](&pr);
+                }
+                demo_mode_check_task_complete();
+            }
+            return;
+        }
+
+        /* Instruction mode — demo owns the encoder */
+        if (data->enc_diff != 0) return;
+
+        if (data->state == LV_INDEV_STATE_PR && !waiting_for_release) {
+            press_start_tick = lv_tick_get();
+            waiting_for_release = true;
+            long_press_fired = false;
+            return;
+        }
+        if (waiting_for_release && data->state == LV_INDEV_STATE_PR) {
+            if (!long_press_fired && lv_tick_elaps(press_start_tick) >= LONG_PRESS_MS) {
+                long_press_fired = true;
+                demo_mode_stop(true);
+            }
+            return;
+        }
+        if (data->state == LV_INDEV_STATE_REL && waiting_for_release) {
+            bool was_long = long_press_fired;
+            waiting_for_release = false;
+            press_start_tick = 0;
+            long_press_fired = false;
+            if (!was_long) {
+                demo_mode_advance();
+            }
+            return;
         }
         return;
     }
