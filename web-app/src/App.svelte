@@ -13,7 +13,7 @@
   import { readingLight } from './lib/stores/readingLight.js';
   import { notifications } from './lib/stores/notifications.js';
   import { tamagotchiStore, setPointsState, applyPointsEvent } from './lib/stores/tamagotchi.js';
-  import { seedDemoGoals } from './lib/stores/goals.js';
+  import { seedDemoGoals, syncDeviceGoals } from './lib/stores/goals.js';
   import NotificationToast from './lib/components/NotificationToast.svelte';
   import InfoIcon from './lib/components/InfoIcon.svelte';
   import Settings from './lib/components/Settings.svelte';
@@ -630,6 +630,7 @@
         switch (msg.data.type) {
           case 'full_sync':
             setPointsState(msg.data.points || {});
+            syncDeviceGoals(msg.data.points?.goals);
             todos = msg.data.todos || [];
             presets = msg.data.presets || [];
             timerState = { ...timerState, ...msg.data.timer } || timerState;
@@ -644,6 +645,7 @@
             break;
           case 'points_sync':
             setPointsState(msg.data || {});
+            syncDeviceGoals(msg.data?.goals);
             break;
           case 'points_earned':
             applyPointsEvent(msg.data || {});

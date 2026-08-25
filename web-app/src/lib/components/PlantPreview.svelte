@@ -2,6 +2,7 @@
   import { fade } from 'svelte/transition';
   import plantStage1 from '../../assets/logos/plant_progression_1.png';
   import plantStage2 from '../../assets/logos/plant_progression_2.png';
+  import plantStage3 from '../../assets/logos/plant_3_sprite.png';
   import InfoIcon from './InfoIcon.svelte';
   import { tamPlantInsight } from '../insights.js';
 
@@ -9,10 +10,11 @@
 
   const STAGES = [
     { level: 1, name: 'Sapling', img: plantStage1 },
-    { level: 2, name: 'Flourishing plant', img: plantStage2 },
+    { level: 2, name: 'Growing plant', img: plantStage2 },
+    { level: 4, name: 'Flourishing plant', img: plantStage3 },
   ];
 
-  $: stage = state.level >= 2 ? STAGES[1] : STAGES[0];
+  $: stage = state.level >= 4 ? STAGES[2] : state.level >= 2 ? STAGES[1] : STAGES[0];
   $: progressPercent = state.levelThreshold > 0 ? Math.min(100, Math.round((state.levelProgress / state.levelThreshold) * 100)) : 0;
   $: nextLevel = (state.level || 1) + 1;
 </script>

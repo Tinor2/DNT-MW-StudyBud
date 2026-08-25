@@ -157,3 +157,32 @@ export function seedDemoGoals() {
   goalsStore.set(next);
   write(next);
 }
+
+export function syncDeviceGoals(deviceGoals) {
+  if (!Array.isArray(deviceGoals) || deviceGoals.length === 0) return;
+  goalsStore.update(state => {
+    const today = todayKey();
+    let changed = false;
+    const goals = state.goals.map((g, i) => {
+      const dg = deviceGoals[i];
+      if (!dg) return g;
+      const newDone = !!dg.done;
+      const newLabel = dg.label || g.label;
+      if (newDone !== g.done || newLabel !== g.label || g.date !== today) {
+        changed = true;
+        return {
+          ...g,
+          label: newLabel,
+          done: newDone,
+          date: today,
+          awarded: g.awarded || newDone,
+        };
+      }
+      return g;
+    });
+    if (!changed) return state;
+    const next = { ...state, goals };
+    write(next);
+    return next;
+  });
+}

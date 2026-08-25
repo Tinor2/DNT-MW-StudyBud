@@ -56,11 +56,12 @@
   }
 
   function toggleGoalFromList(index, event) {
-    const { points } = toggleGoal(index);
-    if (points > 0) {
-      spawnBurstForGoal(index, event);
-      send('points_admin', { action: 'add', amount: points });
-    }
+    const goal = $goalsStore.goals[index];
+    if (!goal) return;
+    const newDone = !goal.done;
+    toggleGoal(index);
+    if (newDone) spawnBurstForGoal(index, event);
+    send('goal_toggle', { index, done: newDone });
   }
 
   function spawnBurstForGoal(index, event) {
