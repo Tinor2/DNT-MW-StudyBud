@@ -188,7 +188,7 @@ static void json_escape(const char *in, char *out, size_t out_len)
     out[j] = '\0';
 }
 
-static const char *streak_names[] = { "focus", "water", "breathing", "goals", "sleep" };
+static const char *streak_names[] = { "focus", "water", "breathing", "goals", "sleep", "move" };
 #define STREAK_NAMES_COUNT ((int)(sizeof(streak_names) / sizeof(streak_names[0])))
 
 static int write_points_fields(char *buf, size_t len)
