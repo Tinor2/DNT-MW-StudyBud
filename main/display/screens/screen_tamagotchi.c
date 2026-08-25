@@ -720,9 +720,13 @@ static void toggle_goal(int index)
     daily_goal_t *g = &ps->goals[index];
     if (g->label[0] == '\0') return;
 
-    points_store_toggle_goal(index, !g->done);
+    int pts = points_store_toggle_goal(index, !g->done);
     persistence_mark_dirty();
     refresh_goals_widgets();
+    if (pts > 0) {
+        app_state_broadcast_points_earned(pts, POINT_REASON_DAILY_GOAL, index);
+    }
+    app_state_broadcast_points_sync();
 }
 
 /* ============================================================

@@ -71,6 +71,11 @@ void points_store_init(void)
     memset(&s_state, 0, sizeof(s_state));
     s_state.bedtime_hour = 23;
     s_state.bedtime_min = 30;
+
+    points_store_set_goal(0, "Drink 8 glasses of water", GOAL_METRIC_WATER, 8);
+    points_store_set_goal(1, "Complete a focus session", GOAL_METRIC_FOCUS, 1);
+    points_store_set_goal(2, "Do 3 breathing exercises", GOAL_METRIC_BREATHING, 3);
+
     points_store_rollover_if_new_day();
 }
 

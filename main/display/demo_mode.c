@@ -35,6 +35,7 @@ typedef struct {
 /* ---- Forward declarations ---- */
 
 static void go_to_checkpoint(uint8_t idx);
+static void inflate_demo_seeds(int base_pts);
 static bool check_breathing_done(void);
 static bool check_water_added(void);
 static bool check_todo_toggled(void);
@@ -268,23 +269,28 @@ static void task_check_cb(lv_timer_t *timer)
            don't call points_store, so we must do it here. */
         if (cp->is_done == check_breathing_done) {
             int pts = points_store_award_breathing(3);
-            ESP_LOGI(TAG, "Awarded %d seeds for breathing", pts);
+            inflate_demo_seeds(pts);
+            ESP_LOGI(TAG, "Awarded %d seeds for breathing (demo 3.2x)", pts);
         } else if (cp->is_done == check_water_added) {
             app_state_t *s = app_state_get();
             int glasses = s->water.glasses - s_water_baseline;
             for (int i = 0; i < glasses; i++) {
-                points_store_award_water(s->water.goal);
+                int pts = points_store_award_water(s->water.goal);
+                inflate_demo_seeds(pts);
             }
-            ESP_LOGI(TAG, "Awarded seeds for %d glasses of water", glasses);
+            ESP_LOGI(TAG, "Awarded seeds for %d glasses of water (demo 3.2x)", glasses);
         } else if (cp->is_done == check_todo_toggled) {
             int pts = points_store_award_todo();
-            ESP_LOGI(TAG, "Awarded %d seeds for todo", pts);
+            inflate_demo_seeds(pts);
+            ESP_LOGI(TAG, "Awarded %d seeds for todo (demo 3.2x)", pts);
         } else if (cp->is_done == check_sleep_ended) {
             int pts = points_store_award_sleep_tracked(420);
-            ESP_LOGI(TAG, "Awarded %d seeds for sleep", pts);
+            inflate_demo_seeds(pts);
+            ESP_LOGI(TAG, "Awarded %d seeds for sleep (demo 3.2x)", pts);
         } else if (cp->is_done == check_timer_started) {
             int pts = points_store_award_focus();
-            ESP_LOGI(TAG, "Awarded %d seeds for focus", pts);
+            inflate_demo_seeds(pts);
+            ESP_LOGI(TAG, "Awarded %d seeds for focus (demo 3.2x)", pts);
         }
 
         /* Exit task mode, hide overlay, advance to next checkpoint.
@@ -400,10 +406,21 @@ static void seed_sedentary(void)
     ss->breaks_today = 0;
 }
 
+static void inflate_demo_seeds(int base_pts)
+{
+    int extra = base_pts * 22 / 10;
+    if (extra > 0) {
+        points_store_admin_add(extra);
+    }
+}
+
 static void seed_all(void)
 {
     seed_app_state_minimal();
     points_store_admin_reset();
+    points_store_set_goal(0, "Drink 8 glasses of water", GOAL_METRIC_WATER, 8);
+    points_store_set_goal(1, "Complete a focus session", GOAL_METRIC_FOCUS, 1);
+    points_store_set_goal(2, "Do 3 breathing exercises", GOAL_METRIC_BREATHING, 3);
     seed_sleep_history();
     seed_sedentary();
     session_store_set_breath_count(0);
@@ -564,19 +581,24 @@ void demo_mode_check_task_complete(void)
 
         /* Award points directly (same as task_check_cb) */
         if (cp->is_done == check_breathing_done) {
-            points_store_award_breathing(3);
+            int pts = points_store_award_breathing(3);
+            inflate_demo_seeds(pts);
         } else if (cp->is_done == check_water_added) {
             app_state_t *s = app_state_get();
             int glasses = s->water.glasses - s_water_baseline;
             for (int i = 0; i < glasses; i++) {
-                points_store_award_water(s->water.goal);
+                int pts = points_store_award_water(s->water.goal);
+                inflate_demo_seeds(pts);
             }
         } else if (cp->is_done == check_todo_toggled) {
-            points_store_award_todo();
+            int pts = points_store_award_todo();
+            inflate_demo_seeds(pts);
         } else if (cp->is_done == check_sleep_ended) {
-            points_store_award_sleep_tracked(420);
+            int pts = points_store_award_sleep_tracked(420);
+            inflate_demo_seeds(pts);
         } else if (cp->is_done == check_timer_started) {
-            points_store_award_focus();
+            int pts = points_store_award_focus();
+            inflate_demo_seeds(pts);
         }
 
         s_task_mode = false;
