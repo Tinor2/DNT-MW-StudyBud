@@ -12,6 +12,7 @@
 #include "esp_sntp.h"
 #include "nvs_flash.h"
 
+
 static const char *TAG = "wifi_mgr";
 
 #define WIFI_CONNECTED_BIT BIT0

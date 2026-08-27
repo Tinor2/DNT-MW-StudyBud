@@ -43,6 +43,7 @@ static lv_obj_t *lbl_title;
 static lv_obj_t *btn_begin;
 static lv_obj_t *btn_cycles;
 static lv_obj_t *lbl_cycles_text;
+static lv_obj_t *lbl_cycles_hint;
 
 /* --- State B: Instruction --- */
 static lv_obj_t *lbl_inst_count;
@@ -259,6 +260,7 @@ static void transition_to_instruction(void)
     lv_obj_add_flag(lbl_title, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(btn_begin, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(btn_cycles, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(lbl_cycles_hint, LV_OBJ_FLAG_HIDDEN);
 
     lv_obj_clear_flag(lbl_inst_count, LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(lbl_inst_moment, LV_OBJ_FLAG_HIDDEN);
@@ -360,6 +362,7 @@ static void reset_to_selection(void)
     lv_obj_clear_flag(lbl_title, LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(btn_begin, LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(btn_cycles, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(lbl_cycles_hint, LV_OBJ_FLAG_HIDDEN);
     lv_obj_set_style_opa(lbl_title, LV_OPA_COVER, 0);
     lv_obj_set_style_opa(btn_begin, LV_OPA_COVER, 0);
     lv_obj_set_style_opa(btn_cycles, LV_OPA_COVER, 0);
@@ -488,7 +491,7 @@ lv_obj_t *screen_breathing_create(void)
     lv_obj_set_style_border_color(btn_begin, theme_accent_light(SCREEN_BREATHING), 0);
     lv_obj_set_style_pad_all(btn_begin, 0, 0);
     lv_obj_t *lbl_begin = lv_label_create(btn_begin);
-    lv_label_set_text(lbl_begin, "BEGIN");
+    lv_label_set_text(lbl_begin, "PRESS TO BEGIN");
     lv_obj_set_style_text_font(lbl_begin, &lv_font_montserrat_28, 0);
     lv_obj_set_style_text_color(lbl_begin, contrast_text_color(theme_accent(SCREEN_BREATHING)), 0);
     lv_obj_center(lbl_begin);
@@ -510,6 +513,13 @@ lv_obj_t *screen_breathing_create(void)
     lv_obj_set_style_text_font(lbl_cycles_text, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_color(lbl_cycles_text, contrast_text_color(theme_accent_dark(SCREEN_BREATHING)), 0);
     lv_obj_center(lbl_cycles_text);
+
+    lbl_cycles_hint = lv_label_create(screen);
+    lv_label_set_text(lbl_cycles_hint, "scroll to change cycles");
+    lv_obj_set_style_text_font(lbl_cycles_hint, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_color(lbl_cycles_hint, LV_COLOR_TEXT_MUTED, 0);
+    lv_obj_set_style_text_opa(lbl_cycles_hint, LV_OPA_80, 0);
+    lv_obj_align(lbl_cycles_hint, LV_ALIGN_CENTER, 0, 128);
 
     /* ---- State B: Instruction ---- */
     lbl_inst_count = lv_label_create(screen);

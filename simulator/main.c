@@ -13,6 +13,7 @@
 #include "../main/display/studybud_theme.h"
 #include "../main/display/ui_manager.h"
 #include "../main/display/app_state.h"
+#include "../main/display/utils/points_store.h"
 
 static const char *TAG = "Simulator";
 
@@ -102,6 +103,93 @@ int main(int argc, char *argv[])
     ESP_LOGI(TAG, "Current time: %s", time_buf);
 
     app_state_init(NULL);
+
+    /* Seed demo todos so the simulator is not blank on start */
+    {
+        app_state_t *st = app_state_get();
+        struct { const char *text; int priority; bool done; } demo_todos[] = {
+            { "Review maths notes",        2, false },
+            { "Complete physics homework", 1, false },
+            { "Read English chapter",      0, false },
+            { "Organise study desk",       3, true  },
+            { "Print assignment draft",    0, false },
+            { "Email teacher about extension", 1, false },
+        };
+        int n = sizeof(demo_todos) / sizeof(demo_todos[0]);
+        for (int i = 0; i < n; i++) {
+            todo_item_t *t = &st->todos[st->todo_count];
+            t->id = st->next_todo_id++;
+            strncpy(t->text, demo_todos[i].text, MAX_TODO_LEN - 1);
+            t->text[MAX_TODO_LEN - 1] = '\0';
+            t->done = demo_todos[i].done;
+            t->priority = demo_todos[i].priority;
+            t->order = st->todo_count;
+            t->points_awarded = demo_todos[i].done;
+            st->todo_count++;
+        }
+        printf("[sim] Seeded %d demo todos\n", n);
+    }
+
+    /* Seed demo water, points, and timer presets */
+    {
+        app_state_t *st = app_state_get();
+
+        st->water.glasses = 4;
+        st->water.goal = 8;
+
+        st->presets[0].id = 1;
+        strncpy(st->presets[0].name, "Pomodoro", MAX_NAME_LEN - 1);
+        st->presets[0].focus_ms = 25 * 60 * 1000;
+        st->presets[0].break_ms = 5 * 60 * 1000;
+        st->presets[0].is_pomodoro = true;
+
+        st->presets[1].id = 2;
+        strncpy(st->presets[1].name, "Deep Work", MAX_NAME_LEN - 1);
+        st->presets[1].focus_ms = 50 * 60 * 1000;
+        st->presets[1].break_ms = 10 * 60 * 1000;
+        st->presets[1].is_pomodoro = false;
+
+        st->presets[2].id = 3;
+        strncpy(st->presets[2].name, "Quick Review", MAX_NAME_LEN - 1);
+        st->presets[2].focus_ms = 15 * 60 * 1000;
+        st->presets[2].break_ms = 3 * 60 * 1000;
+        st->presets[2].is_pomodoro = false;
+
+        st->preset_count = 3;
+        st->next_preset_id = 4;
+
+        points_store_init();
+        points_state_t *ps = points_store_get_state();
+        ps->total_points = 185;
+        ps->today_points = 35;
+        strncpy(ps->day_key, "2026-08-27", sizeof(ps->day_key) - 1);
+        ps->todos_done_today = 1;
+        ps->water_today = 4;
+        ps->breathing_today = 2;
+
+        ps->streaks[STREAK_FOCUS].streak = 3;
+        ps->streaks[STREAK_WATER].streak = 5;
+        ps->streaks[STREAK_BREATHING].streak = 2;
+
+        strncpy(ps->goals[0].label, "Drink 8 glasses", MAX_GOAL_LEN - 1);
+        ps->goals[0].metric = GOAL_METRIC_WATER;
+        ps->goals[0].target = 8;
+        ps->goals[0].done = false;
+
+        strncpy(ps->goals[1].label, "Complete 1 focus session", MAX_GOAL_LEN - 1);
+        ps->goals[1].metric = GOAL_METRIC_FOCUS;
+        ps->goals[1].target = 1;
+        ps->goals[1].done = false;
+
+        strncpy(ps->goals[2].label, "Do a breathing exercise", MAX_GOAL_LEN - 1);
+        ps->goals[2].metric = GOAL_METRIC_BREATHING;
+        ps->goals[2].target = 1;
+        ps->goals[2].done = false;
+
+        printf("[sim] Seeded water (%d/%d), points (%d total, %d today), 3 presets, 3 daily goals\n",
+               st->water.glasses, st->water.goal, ps->total_points, ps->today_points);
+    }
+
     ui_manager_init();
 
     ESP_LOGI(TAG, "Starting main loop");

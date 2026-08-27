@@ -246,6 +246,23 @@ export function breathingEvaluation(sessionsWeek, avgMin) {
   return { grade, title, text };
 }
 
+export function stretchBreakInsight(breaksToday, lastBreakMinAgo) {
+  const lines = [
+    'Movement breaks boost blood flow to the prefrontal cortex — the part of the brain that handles focus and decision-making.'
+  ];
+  if (breaksToday > 0) {
+    lines.push(`You've taken ${breaksToday} break${breaksToday === 1 ? '' : 's'} today. Even a 2-minute stretch every hour keeps stiffness and mental fog at bay.`);
+  } else {
+    lines.push('No breaks logged yet today. Stand up, stretch your shoulders, and take a few deep breaths — it takes two minutes and resets your focus.');
+  }
+  if (lastBreakMinAgo > 0 && lastBreakMinAgo < 60) {
+    lines.push(`Last break was ${lastBreakMinAgo} min ago — you're on a good roll.`);
+  } else if (lastBreakMinAgo >= 60) {
+    lines.push(`It's been ${lastBreakMinAgo} min since your last break. Time to stand up and move.`);
+  }
+  return lines;
+}
+
 export function waterEvaluation(avgGlasses, goalPct) {
   if (!avgGlasses || avgGlasses <= 0) {
     return { grade: 'none', title: 'No water data yet', text: 'Log a few glasses and this card will judge how your hydration is looking.' };

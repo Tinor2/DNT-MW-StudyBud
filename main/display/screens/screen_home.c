@@ -83,7 +83,9 @@ lv_obj_t *screen_home_create(void)
     lv_label_set_text(hint_label, "Press to set goals and grow your plant");
     lv_obj_set_style_text_font(hint_label, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(hint_label, LV_COLOR_TEXT_MUTED, 0);
-    lv_obj_align(hint_label, LV_ALIGN_BOTTOM_MID, 0, -30);
+    lv_label_set_long_mode(hint_label, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(hint_label, 300);
+    lv_obj_align(hint_label, LV_ALIGN_CENTER, 0, 100);
 
     /* Update time immediately, then every second */
     update_time_cb(NULL);

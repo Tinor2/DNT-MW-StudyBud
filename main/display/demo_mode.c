@@ -408,7 +408,7 @@ static void seed_sedentary(void)
 
 static void inflate_demo_seeds(int base_pts)
 {
-    int extra = base_pts * 22 / 10;
+    int extra = base_pts * 3;
     if (extra > 0) {
         points_store_admin_add(extra);
     }

@@ -294,7 +294,7 @@ void sdl_driver_init(void)
     }
 
     window = SDL_CreateWindow(
-        "StudyBud Simulator",
+        "Focus Friend Simulator",
         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
         SIM_LCD_H_RES, SIM_LCD_V_RES,
         SDL_WINDOW_SHOWN

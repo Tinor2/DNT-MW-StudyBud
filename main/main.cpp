@@ -58,6 +58,13 @@ extern "C" void app_main(void)
     esp_err_t wifi_ret = wifi_manager_init(wifi_credentials, wifi_count);
     if (wifi_ret == ESP_OK) {
         ESP_LOGI(TAG, "WiFi connected");
+        for (int i = 0; i < 3; i++) {
+            Set_Backlight(0);
+            vTaskDelay(pdMS_TO_TICKS(100));
+            Set_Backlight(100);
+            vTaskDelay(pdMS_TO_TICKS(100));
+        }
+        Set_Backlight(70);
         web_server_init();
     } else {
         ESP_LOGW(TAG, "WiFi failed, continuing without network");

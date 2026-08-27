@@ -41,6 +41,7 @@ typedef struct {
 } menu_item_t;
 
 static const menu_item_t menu_items[] = {
+    { LV_SYMBOL_PLAY,      "Demo",          SCREEN_DEMO,       NULL },
     { LV_SYMBOL_HOME,      "Home",          SCREEN_HOME,       NULL },
     { LV_SYMBOL_BELL,      "Tamagotchi",    SCREEN_TAMAGOTCHI, &tamagotchi_logo },
     { LV_SYMBOL_REFRESH,   "Breathing",     SCREEN_BREATHING,  &breathing_logo },
@@ -51,7 +52,6 @@ static const menu_item_t menu_items[] = {
     { LV_SYMBOL_LIST,      "Todos",         SCREEN_TODOS,      &todo_logo },
     { LV_SYMBOL_IMAGE,     "Backgrounds",   SCREEN_BACKGROUNDS, NULL },
     { LV_SYMBOL_SETTINGS,  "Settings",      SCREEN_SETTINGS,   NULL },
-    { LV_SYMBOL_PLAY,      "Demo",          SCREEN_DEMO,       NULL },
 };
 static const int menu_count = sizeof(menu_items) / sizeof(menu_items[0]);
 
@@ -141,6 +141,7 @@ static void update_focus_styles(void)
         if (row == focused_row) {
             lv_obj_set_style_text_font(label, &lv_font_montserrat_20, 0);
             lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
+            lv_obj_set_width(label, lv_obj_get_width(row) - 2 * ROW_INNER_PAD - 32);
             lv_obj_set_style_text_color(label, text_color, 0);
             if (row_icon_is_image[i]) {
                 lv_obj_set_style_img_opa(icon, LV_OPA_COVER, 0);

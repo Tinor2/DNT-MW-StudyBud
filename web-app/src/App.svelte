@@ -251,10 +251,21 @@
       exercises: [
         { id: 1, name: 'Calm Box', inhale_ms: 4000, hold_ms: 4000, exhale_ms: 4000, hold2_ms: 4000 },
         { id: 2, name: '4-7-8', inhale_ms: 4000, hold_ms: 7000, exhale_ms: 8000, hold2_ms: 0 },
+        { id: 3, name: 'Physiological Sigh', inhale_ms: 2000, hold_ms: 500, exhale_ms: 6000, hold2_ms: 0 },
+        { id: 4, name: 'Coherent Breathing', inhale_ms: 5000, hold_ms: 0, exhale_ms: 5000, hold2_ms: 0 },
       ],
       active: false,
       active_id: 1,
       sessions_today: 2,
+    };
+    sedentaryState = {
+      breaks_today: 2,
+      total_today: 20,
+      last_break_min_ago: 25,
+      history: [
+        { time: '10:15', type: 'stretch', seeds: 10 },
+        { time: '11:40', type: 'water', seeds: 10 },
+      ],
     };
     try { localStorage.setItem('studybud_seeded_devices_v1', '1'); } catch {}
   }
@@ -579,6 +590,7 @@
   let breathingState = { exercises: [], active: false, active_id: 0, sessions_today: 0 };
   let waterState = { glasses: 0, goal: 8 };
   let settingsState = { brightness: 50, volume: 50, idle_timeout: 30, reading_light: 0 };
+  let sedentaryState = { breaks_today: 0, total_today: 0, last_break_min_ago: 0, history: [] };
 
   seedDemoDeviceState();
 
@@ -880,7 +892,7 @@
   <!-- Header -->
   <header class="app-header">
     <div class="header-left">
-      <h1 class="app-title">StudyBud</h1>
+      <h1 class="app-title">Focus Friend</h1>
     </div>
     <div class="header-right">
       <button class="btn-icon" on:click={connected ? disconnect : connect} title={connected ? 'Disconnect' : 'Connect'}>
@@ -923,7 +935,7 @@
         <h2>Dashboard</h2>
         {#if !connected}
           <div class="connect-prompt card">
-            <p>Connect to your StudyBud to see live data.</p>
+            <p>Connect to your Focus Friend to see live data.</p>
             <button class="btn btn-primary" on:click={connect}>Connect</button>
           </div>
         {/if}
@@ -1439,17 +1451,60 @@
         <div class="card">
           <div class="card-row">
             <div>
-              <h3>Status</h3>
-              <p class="card-sub">Stretch break control is device-only — this panel monitors sessions.</p>
+              <h3>Today</h3>
+              <p class="card-sub">{sedentaryState.breaks_today} break{sedentaryState.breaks_today === 1 ? '' : 's'} taken · {sedentaryState.total_today} seeds earned</p>
+            </div>
+            <div class="analytics-row" style="gap: 1.5rem;">
+              <div class="analytics-stat">
+                <span class="analytics-value">{sedentaryState.breaks_today}</span>
+                <span class="analytics-label">Breaks today</span>
+              </div>
+              <div class="analytics-stat">
+                <span class="analytics-value">+{sedentaryState.total_today}</span>
+                <span class="analytics-label">Seeds earned</span>
+              </div>
             </div>
           </div>
+          <p class="card-sub">Stretch break control is device-only — this panel monitors sessions.</p>
         </div>
 
-        <div class="card">
-          <InfoIcon lines={insights.stretchBreakInsight ? insights.stretchBreakInsight() : ['Take regular stretch breaks to reduce sedentary time and improve focus.']} title="Stretch breaks & health" />
-          <h3>Why Stretch?</h3>
-          <p>Sitting for long periods reduces blood flow and increases tension. Regular stretch breaks help maintain focus, reduce stiffness, and protect against burnout.</p>
-          <p class="card-sub">Default interval: 60 min · Daily cap: 5 breaks · +10 seeds per break</p>
+        {#if sedentaryState.history.length > 0}
+          <div class="card">
+            <h3>Recent Breaks</h3>
+            {#each sedentaryState.history as entry}
+              <div class="card-row" style="justify-content: space-between; padding: 0.3rem 0;">
+                <span class="card-sub">{entry.time} — {entry.type === 'stretch' ? 'Stretch break' : 'Water break'}</span>
+                <span class="badge type-badge">+{entry.seeds} seeds</span>
+              </div>
+            {/each}
+          </div>
+        {/if}
+
+        <div class="card analysis-card">
+          <InfoIcon lines={insights.stretchBreakInsight(sedentaryState.breaks_today, sedentaryState.last_break_min_ago)} title="Stretch breaks & health" />
+          <h3>Stretch Break Analysis</h3>
+          <div class="analytics-row">
+            <div class="analytics-stat">
+              <span class="analytics-value">{sedentaryState.breaks_today}/5</span>
+              <span class="analytics-label">Daily cap progress</span>
+            </div>
+            <div class="analytics-stat">
+              <span class="analytics-value">{sedentaryState.last_break_min_ago > 0 ? sedentaryState.last_break_min_ago + 'm ago' : '—'}</span>
+              <span class="analytics-label">Last break</span>
+            </div>
+            <div class="analytics-stat">
+              <span class="analytics-value">60m</span>
+              <span class="analytics-label">Default interval</span>
+            </div>
+          </div>
+          <div class="evaluation good">
+            <span class="eval-icon">💡</span>
+            <div class="eval-copy">
+              <strong>Why Stretch?</strong>
+              <p>Sitting for long periods reduces blood flow and increases tension. Regular stretch breaks help maintain focus, reduce stiffness, and protect against burnout.</p>
+            </div>
+          </div>
+          <p class="card-sub">+10 seeds per break · Daily cap: 5 breaks · Default interval: 60 min</p>
         </div>
       </div>
     {/if}

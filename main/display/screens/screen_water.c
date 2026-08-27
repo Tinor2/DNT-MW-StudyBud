@@ -319,8 +319,8 @@ void screen_water_encoder_event(lv_indev_data_t *data)
 
     if (data->enc_diff != 0) {
         focus_index += data->enc_diff;
-        if (focus_index < 0) focus_index = WATER_BTN_COUNT - 1;
-        if (focus_index >= WATER_BTN_COUNT) focus_index = 0;
+        if (focus_index < 0) focus_index = 0;
+        if (focus_index >= WATER_BTN_COUNT) focus_index = WATER_BTN_COUNT - 1;
         update_focus_styles();
     }
 
