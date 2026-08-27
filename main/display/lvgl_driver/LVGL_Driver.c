@@ -2,6 +2,7 @@
 #include "studybud_theme.h"
 #include "ST7701S.h"
 #include "encoder_input.h"
+#include "ui_manager.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "esp_heap_caps.h"
@@ -12,6 +13,12 @@ static lv_disp_draw_buf_t disp_buf;
 static lv_disp_drv_t disp_drv;
 static lv_indev_drv_t indev_drv;
 static esp_timer_handle_t lvgl_tick_timer = NULL;
+
+static void encoder_read_wrapper(lv_indev_drv_t *drv, lv_indev_data_t *data)
+{
+    encoder_input_read(drv, data);
+    ui_manager_encoder_event(data);
+}
 
 static void *buf1 = NULL;
 static void *buf2 = NULL;
@@ -98,7 +105,7 @@ void LVGL_Driver_init(void)
     lv_indev_drv_init(&indev_drv);
     indev_drv.type = LV_INDEV_TYPE_ENCODER;
     indev_drv.disp = disp;
-    indev_drv.read_cb = encoder_input_read;
+    indev_drv.read_cb = encoder_read_wrapper;
     lv_indev_drv_register(&indev_drv);
 
     /* Start tick timer (2ms period) */

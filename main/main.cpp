@@ -9,8 +9,29 @@
 #include "LCD_Driver/ST7701S.h"
 #include "display/lvgl_driver/LVGL_Driver.h"
 #include "display/ui_manager.h"
+#include "networking/wifi_manager.h"
+#include "networking/web_server.h"
 
 static const char *TAG = "StudyBud";
+
+static const wifi_credential_t wifi_credentials[] = {
+    {
+        .ssid = "Optus_0253C6",
+        .auth_mode = WIFI_CRED_PSK,
+        .password = "chumssawerMg9QT",
+        .identity = NULL,
+        .username = NULL,
+        .ent_password = NULL,
+    },
+    {
+        .ssid = "RJA-BYOD",
+        .auth_mode = WIFI_CRED_ENTERPRISE,
+        .password = NULL,
+        .identity = "rbhandari",
+        .username = "rbhandari",
+        .ent_password = "Rusts@il#427",
+    },
+};
 
 extern "C" void app_main(void)
 {
@@ -31,6 +52,23 @@ extern "C" void app_main(void)
 
     ESP_LOGI(TAG, "Initializing UI Manager...");
     ui_manager_init();
+
+    ESP_LOGI(TAG, "Initializing WiFi...");
+    int wifi_count = sizeof(wifi_credentials) / sizeof(wifi_credentials[0]);
+    esp_err_t wifi_ret = wifi_manager_init(wifi_credentials, wifi_count);
+    if (wifi_ret == ESP_OK) {
+        ESP_LOGI(TAG, "WiFi connected");
+        for (int i = 0; i < 3; i++) {
+            Set_Backlight(0);
+            vTaskDelay(pdMS_TO_TICKS(100));
+            Set_Backlight(100);
+            vTaskDelay(pdMS_TO_TICKS(100));
+        }
+        Set_Backlight(70);
+        web_server_init();
+    } else {
+        ESP_LOGW(TAG, "WiFi failed, continuing without network");
+    }
 
     ESP_LOGI(TAG, "StudyBud ready");
 

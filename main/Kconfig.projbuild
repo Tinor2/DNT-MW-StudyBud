@@ -14,4 +14,11 @@ menu "StudyBud Configuration"
             Enable bounce buffer mode for higher PCLK frequency at the cost
             of higher CPU consumption.
 
+    config STUDYBUD_TIMEZONE
+        string "Time zone (POSIX TZ string)"
+        default "UTC0"
+        help
+            POSIX timezone string used for localtime() after SNTP sync,
+            e.g. "UTC0" or "AEST-10AEDT,M10.1.0,M4.1.0/3".
+
 endmenu

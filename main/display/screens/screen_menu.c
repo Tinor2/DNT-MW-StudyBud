@@ -1,8 +1,18 @@
 #include "screen_menu.h"
-#include "studybud_theme.h"
+#include "color_palette.h"
 #include "ui_manager.h"
+#include "../app_state.h"
+#include "app_logo.h"
+#include "todo_logo.h"
+#include "timer_logo.h"
+#include "tamagotchi_logo.h"
+#include "breathing_logo.h"
+#include "sleeping_logo.h"
+#include "sedentary_logo.h"
 #include "esp_log.h"
+#include <stdio.h>
 #include <math.h>
+#include <string.h>
 
 static const char *TAG = "Screen_Menu";
 
@@ -15,6 +25,7 @@ static const char *TAG = "Screen_Menu";
 
 static lv_obj_t *screen = NULL;
 static lv_obj_t *menu_container = NULL;
+static lv_obj_t *title_label = NULL;
 static lv_obj_t *arrow_up_label = NULL;
 static lv_obj_t *arrow_down_label = NULL;
 static lv_obj_t *count_label = NULL;
@@ -26,22 +37,28 @@ typedef struct {
     const char *icon;
     const char *name;
     screen_id_t target;
+    const lv_img_dsc_t *img;
 } menu_item_t;
 
 static const menu_item_t menu_items[] = {
-    { LV_SYMBOL_HOME,      "Home",          SCREEN_HOME },
-    { LV_SYMBOL_PLAY,      "Timer",         SCREEN_TIMER },
-    { LV_SYMBOL_LIST,      "Todos",         SCREEN_TODOS },
-    { LV_SYMBOL_BELL,      "Water",         SCREEN_WATER },
-    { LV_SYMBOL_REFRESH,   "Breathing",     SCREEN_BREATHING },
-    { LV_SYMBOL_IMAGE,     "Backgrounds",   SCREEN_BACKGROUNDS },
-    { LV_SYMBOL_SETTINGS,  "Settings",      SCREEN_SETTINGS },
+    { LV_SYMBOL_PLAY,      "Demo",          SCREEN_DEMO,       NULL },
+    { LV_SYMBOL_HOME,      "Home",          SCREEN_HOME,       NULL },
+    { LV_SYMBOL_BELL,      "Tamagotchi",    SCREEN_TAMAGOTCHI, &tamagotchi_logo },
+    { LV_SYMBOL_REFRESH,   "Breathing",     SCREEN_BREATHING,  &breathing_logo },
+    { LV_SYMBOL_BELL,      "Water",         SCREEN_WATER,      &app_logo },
+    { LV_SYMBOL_OK,        "Stretch Break", SCREEN_SEDENTARY,  &sedentary_logo },
+    { LV_SYMBOL_EYE_OPEN,  "Sleep",         SCREEN_SLEEP,      &sleeping_logo },
+    { LV_SYMBOL_PLAY,      "Timer",         SCREEN_TIMER_PRESETS, &timer_logo },
+    { LV_SYMBOL_LIST,      "Todos",         SCREEN_TODOS,      &todo_logo },
+    { LV_SYMBOL_IMAGE,     "Backgrounds",   SCREEN_BACKGROUNDS, NULL },
+    { LV_SYMBOL_SETTINGS,  "Settings",      SCREEN_SETTINGS,   NULL },
 };
 static const int menu_count = sizeof(menu_items) / sizeof(menu_items[0]);
 
-static lv_obj_t *row_icons[7];
-static lv_obj_t *row_labels[7];
-static lv_obj_t *row_objects[7];
+static lv_obj_t *row_icons[16];
+static bool row_icon_is_image[16];
+static lv_obj_t *row_labels[16];
+static lv_obj_t *row_objects[16];
 static lv_obj_t *focused_row = NULL;
 
 static void update_focus_styles(void);
@@ -55,6 +72,10 @@ static void anim_set_opa(void *var, int32_t val)
 {
     lv_obj_set_style_opa((lv_obj_t *)var, (lv_opa_t)val, 0);
 }
+
+static lv_color_t accent_colors[16];
+static lv_color_t accent_light[16];
+static lv_color_t accent_dark[16];
 
 static void create_menu_row(lv_obj_t *parent, int index)
 {
@@ -71,11 +92,23 @@ static void create_menu_row(lv_obj_t *parent, int index)
     lv_obj_set_style_min_width(row, 0, 0);
     row_objects[index] = row;
 
-    lv_obj_t *icon = lv_label_create(row);
-    lv_label_set_text(icon, menu_items[index].icon);
-    lv_obj_set_style_text_font(icon, &lv_font_montserrat_20, 0);
-    lv_obj_set_style_text_color(icon, LV_COLOR_PRIMARY, 0);
-    lv_obj_set_style_text_opa(icon, LV_OPA_80, 0);
+    lv_obj_t *icon;
+    if (menu_items[index].img) {
+        icon = lv_img_create(row);
+        lv_img_set_src(icon, menu_items[index].img);
+        lv_obj_set_style_img_recolor(icon, accent_colors[index], 0);
+        lv_obj_set_style_img_opa(icon, LV_OPA_80, 0);
+        lv_obj_set_style_bg_opa(icon, LV_OPA_TRANSP, 0);
+        lv_obj_set_style_border_width(icon, 0, 0);
+        row_icon_is_image[index] = true;
+    } else {
+        icon = lv_label_create(row);
+        lv_label_set_text(icon, menu_items[index].icon);
+        lv_obj_set_style_text_font(icon, &lv_font_montserrat_20, 0);
+        lv_obj_set_style_text_color(icon, accent_colors[index], 0);
+        lv_obj_set_style_text_opa(icon, LV_OPA_80, 0);
+        row_icon_is_image[index] = false;
+    }
     row_icons[index] = icon;
 
     lv_obj_t *label = lv_label_create(row);
@@ -88,9 +121,17 @@ static void create_menu_row(lv_obj_t *parent, int index)
     lv_obj_set_style_pad_ver(row, 6, 0);
     row_labels[index] = label;
 }
-
 static void update_focus_styles(void)
 {
+    int fi = selected_index;
+    lv_color_t fc = accent_colors[fi];
+    lv_color_t text_color = darken_text_color(fc, 0.5f);
+    if (screen) lv_obj_set_style_bg_color(screen, pastel_color(fc), 0);
+    if (title_label) lv_obj_set_style_text_color(title_label, text_color, 0);
+    if (arrow_up_label) lv_obj_set_style_text_color(arrow_up_label, text_color, 0);
+    if (arrow_down_label) lv_obj_set_style_text_color(arrow_down_label, text_color, 0);
+    if (count_label) lv_obj_set_style_text_color(count_label, text_color, 0);
+
     for (int i = 0; i < menu_count; i++) {
         lv_obj_t *row = row_objects[i];
         lv_obj_t *label = row_labels[i];
@@ -100,10 +141,16 @@ static void update_focus_styles(void)
         if (row == focused_row) {
             lv_obj_set_style_text_font(label, &lv_font_montserrat_20, 0);
             lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
-            lv_obj_set_style_text_opa(icon, LV_OPA_COVER, 0);
+            lv_obj_set_width(label, lv_obj_get_width(row) - 2 * ROW_INNER_PAD - 32);
+            lv_obj_set_style_text_color(label, text_color, 0);
+            if (row_icon_is_image[i]) {
+                lv_obj_set_style_img_opa(icon, LV_OPA_COVER, 0);
+            } else {
+                lv_obj_set_style_text_opa(icon, LV_OPA_COVER, 0);
+            }
             lv_obj_set_style_pad_ver(row, 12, 0);
             lv_obj_set_style_bg_opa(row, LV_OPA_20, 0);
-            lv_obj_set_style_bg_color(row, LV_COLOR_PRIMARY, 0);
+            lv_obj_set_style_bg_color(row, fc, 0);
             lv_obj_set_style_radius(row, 12, 0);
 
             lv_anim_t a;
@@ -117,7 +164,12 @@ static void update_focus_styles(void)
         } else {
             lv_obj_set_style_text_font(label, &lv_font_montserrat_16, 0);
             lv_label_set_long_mode(label, LV_LABEL_LONG_DOT);
-            lv_obj_set_style_text_opa(icon, LV_OPA_80, 0);
+            lv_obj_set_style_text_color(label, LV_COLOR_TEXT, 0);
+            if (row_icon_is_image[i]) {
+                lv_obj_set_style_img_opa(icon, LV_OPA_80, 0);
+            } else {
+                lv_obj_set_style_text_opa(icon, LV_OPA_80, 0);
+            }
             lv_obj_set_style_pad_ver(row, 6, 0);
             lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
 
@@ -229,11 +281,11 @@ lv_obj_t *screen_menu_create(void)
     lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
 
     /* Title */
-    lv_obj_t *title = lv_label_create(screen);
-    lv_label_set_text(title, "Menu");
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_20, 0);
-    lv_obj_set_style_text_color(title, LV_COLOR_TEXT, 0);
-    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 30);
+    title_label = lv_label_create(screen);
+    lv_label_set_text(title_label, "Menu");
+    lv_obj_set_style_text_font(title_label, &lv_font_montserrat_20, 0);
+    lv_obj_set_style_text_color(title_label, LV_COLOR_TEXT, 0);
+    lv_obj_align(title_label, LV_ALIGN_TOP_MID, 0, 30);
 
     /* Scrollable container for menu rows */
     menu_container = lv_obj_create(screen);
@@ -269,6 +321,54 @@ lv_obj_t *screen_menu_create(void)
     lv_obj_set_style_text_font(count_label, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(count_label, LV_COLOR_TEXT_MUTED, 0);
     lv_obj_align(count_label, LV_ALIGN_BOTTOM_MID, 0, -60);
+
+    /* Compute per-item accent colors from icon images */
+    for (int i = 0; i < menu_count; i++) {
+        if (menu_items[i].target == SCREEN_TAMAGOTCHI) {
+            /* Tamagotchi uses the hard-coded plant green so the menu icon
+               and navigation glow ring match the plant on the app screen. */
+            accent_colors[i] = LV_COLOR_TAMAGOTCHI;
+        }
+        else if (menu_items[i].img) {
+            accent_colors[i] =
+                compute_dominant_color(
+                    menu_items[i].img
+                );
+        }
+        else {
+          accent_colors[i] =
+                LV_COLOR_PRIMARY;
+        }
+        accent_light[i] =
+            lighten_color(
+                accent_colors[i],
+                0.40f
+            );
+        accent_dark[i] =
+            darken_color(
+                accent_colors[i],
+                0.15f
+            );
+    }
+    printf("Accent colors:\n");
+    for (int i = 0; i < menu_count; i++) {
+        printf("  [%d]: %06lX\n", i, (unsigned long)lv_color_pack(accent_colors[i]));
+    }
+
+    /* Store per-screen accent colors in app_state */
+    app_state_t *state = app_state_get();
+    for (int i = 0; i < menu_count; i++) {
+        screen_id_t target = menu_items[i].target;
+        state->screen_accent[target] = lv_color_pack(accent_colors[i]);
+        state->screen_accent_light[target] = lv_color_pack(accent_light[i]);
+        state->screen_accent_dark[target] = lv_color_pack(accent_dark[i]);
+    }
+    state->screen_accent[SCREEN_TIMER] = state->screen_accent[SCREEN_TIMER_PRESETS];
+    state->screen_accent_light[SCREEN_TIMER] = state->screen_accent_light[SCREEN_TIMER_PRESETS];
+    state->screen_accent_dark[SCREEN_TIMER] = state->screen_accent_dark[SCREEN_TIMER_PRESETS];
+    state->screen_accent[SCREEN_TIMER_EDIT] = state->screen_accent[SCREEN_TIMER_PRESETS];
+    state->screen_accent_light[SCREEN_TIMER_EDIT] = state->screen_accent_light[SCREEN_TIMER_PRESETS];
+    state->screen_accent_dark[SCREEN_TIMER_EDIT] = state->screen_accent_dark[SCREEN_TIMER_PRESETS];
 
     /* Create menu rows */
     for (int i = 0; i < menu_count; i++) {
@@ -317,7 +417,14 @@ void screen_menu_encoder_event(lv_indev_data_t *data)
 screen_id_t screen_menu_get_selection(void)
 {
     if (selected_index >= 0 && selected_index < menu_count) {
-        return menu_items[selected_index].target;
+        screen_id_t target = menu_items[selected_index].target;
+        if (target == SCREEN_TIMER_PRESETS) {
+            timer_state_t *ts = app_state_get_timer();
+            if (ts->is_running || ts->phase_complete_awaiting_press || ts->total_seconds > 0) {
+                return SCREEN_TIMER;
+            }
+        }
+        return target;
     }
     return SCREEN_COUNT;
 }

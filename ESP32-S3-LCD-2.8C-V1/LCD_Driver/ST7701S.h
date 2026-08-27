@@ -11,9 +11,16 @@
 #include "esp_log.h"
 #include "TCA9554PWR.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define LCD_MOSI                   1
 #define LCD_SCLK                   2
 #define LCD_CS                     -1
+/* SD card shares the same SPI2 bus (MOSI/SCLK above); add its MISO line here
+   so the bus is usable by both the LCD and the SD slot. */
+#define SHARED_SPI_MISO            42
 
 #define EXAMPLE_LCD_H_RES          480
 #define EXAMPLE_LCD_V_RES          480
@@ -61,3 +68,7 @@ void LCD_Init(void);
 void Backlight_Init(void);
 void Set_Backlight(uint8_t Light);
 extern esp_lcd_panel_handle_t panel_handle;
+
+#ifdef __cplusplus
+}
+#endif

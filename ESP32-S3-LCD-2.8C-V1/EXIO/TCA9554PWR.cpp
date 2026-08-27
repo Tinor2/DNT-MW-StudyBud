@@ -1,5 +1,9 @@
 #include "TCA9554PWR.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 uint8_t Read_REG(uint8_t REG)
 {
     uint8_t bitsStatus = 0;
@@ -90,3 +94,7 @@ esp_err_t EXIO_Init(void)
     Set_EXIO(TCA9554_EXIO8, false);
     return ESP_OK;
 }
+
+#ifdef __cplusplus
+}
+#endif

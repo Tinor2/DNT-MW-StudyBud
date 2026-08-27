@@ -12,7 +12,7 @@ static ST7701S_handle ST7701S_newObject(int SDA, int SCL, int CS, spi_host_devic
     ST7701S_handle handle = (ST7701S_handle)heap_caps_calloc(1, sizeof(ST7701S), MALLOC_CAP_DEFAULT);
     handle->method_select = method_select;
 
-    handle->spi_io_config_t.miso_io_num = -1;
+    handle->spi_io_config_t.miso_io_num = SHARED_SPI_MISO;
     handle->spi_io_config_t.mosi_io_num = SDA;
     handle->spi_io_config_t.sclk_io_num = SCL;
     handle->spi_io_config_t.quadwp_io_num = -1;
